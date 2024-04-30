@@ -8,8 +8,10 @@ use qsc_frontend::{
     compile::{CompileUnit, PackageStore, SourceMap},
     error::WithSource,
 };
-use qsc_hir::hir::PackageId;
+use qsc_hir::{global, hir::PackageId};
 use qsc_passes::{run_core_passes, run_default_passes, PackageType};
+use rustc_hash::FxHashMap;
+use std::{cell::RefCell, rc::Rc};
 use thiserror::Error;
 
 pub type Error = WithSource<ErrorKind>;
@@ -120,6 +122,40 @@ pub fn core() -> CompileUnit {
 
         panic!("could not compile core library")
     }
+}
+
+thread_local! {
+    static CORE: (Rc<CompileUnit>, Rc<global::Table>) = {
+        let core = Rc::new(core());
+        let table = Rc::new(global::iter_package(Some(PackageId::CORE), &core.package).collect());
+        (core,table)
+    };
+
+    static STD: RefCell<FxHashMap<TargetCapabilityFlags, Rc<CompileUnit>>> = RefCell::default();
+}
+
+#[must_use]
+fn cached_core() -> (Rc<CompileUnit>, Rc<global::Table>) {
+    CORE.with(|(unit, table)| (unit.clone(), table.clone()))
+}
+
+#[must_use]
+fn cached_std(store: &PackageStore, capabilities: TargetCapabilityFlags) -> Rc<CompileUnit> {
+    STD.with(|cache| {
+        cache
+            .borrow_mut()
+            .entry(capabilities)
+            .or_insert_with(|| Rc::new(std(store, capabilities)))
+            .clone()
+    })
+}
+
+#[must_use]
+pub fn new_std_core(capabilities: TargetCapabilityFlags) -> (PackageStore, PackageId) {
+    let (core, table) = cached_core();
+    let mut package_store = PackageStore::with_cached_core(core, table);
+    let std_package_id = package_store.cached_insert(cached_std(&package_store, capabilities));
+    (package_store, std_package_id)
 }
 
 /// Compiles the standard library.
