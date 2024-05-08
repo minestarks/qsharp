@@ -65,17 +65,6 @@ serializable_type! {
 }
 
 impl VSDiagnostic {
-    pub fn json(&self) -> serde_json::Value {
-        serde_json::to_value(self).expect("serializing VSDiagnostic should succeed")
-    }
-
-    /// Creates a [`VSDiagnostic`] from an interpreter error. See `VSDiagnostic::new()` for details.
-    pub(crate) fn from_interpret_error(source_name: &str, err: &interpret::Error) -> Self {
-        let labels = interpret_error_labels(err);
-
-        Self::new(labels, source_name, err)
-    }
-
     /// Creates a [`VSDiagnostic`] from a compiler error. See `VSDiagnostic::new()` for details.
     pub(crate) fn from_compile_error(source_name: &str, err: &qsc::compile::Error) -> Self {
         let labels = error_labels(err);

@@ -31,7 +31,7 @@ fn test_missing_type() {
     let _ = run_internal(
         SourceMap::new([("test.qs".into(), code.into())], Some(expr.into())),
         |msg| {
-            expect![[r#"{"result":{"code":"Qsc.TypeCk.MissingItemTy","message":"type error: missing type in item signature\n\nhelp: types cannot be inferred for global declarations","range":{"end":{"character":33,"line":0},"start":{"character":32,"line":0}},"severity":"error"},"success":false,"type":"Result"}"#]].assert_eq(msg);
+            expect![[r#"{"result":"[{\"document\":\"test.qs\",\"diagnostic\":{\"range\":{\"start\":{\"line\":0,\"character\":32},\"end\":{\"line\":0,\"character\":33}},\"message\":\"type error: missing type in item signature\\n\\nhelp: types cannot be inferred for global declarations\",\"severity\":\"error\",\"code\":\"Qsc.TypeCk.MissingItemTy\"},\"stack\":null},{\"document\":\"test.qs\",\"diagnostic\":{\"range\":{\"start\":{\"line\":0,\"character\":32},\"end\":{\"line\":0,\"character\":33}},\"message\":\"type error: insufficient type information to infer type\\n\\nhelp: provide a type annotation\",\"severity\":\"error\",\"code\":\"Qsc.TypeCk.AmbiguousTy\"},\"stack\":null}]","success":false,"type":"Result"}"#]].assert_eq(msg);
             count.set(count.get() + 1);
         },
         1,
@@ -94,7 +94,7 @@ fn fail_ry() {
     let _result = run_internal(
         SourceMap::new([("test.qs".into(), code.into())], Some(expr.into())),
         |msg| {
-            expect![[r#"{"result":{"code":"Qsc.TypeCk.TyMismatch","message":"type error: expected (Double, Qubit), found Qubit","range":{"end":{"character":18,"line":3},"start":{"character":12,"line":3}},"severity":"error"},"success":false,"type":"Result"}"#]].assert_eq(msg);
+            expect![[r#"{"result":"[{\"document\":\"test.qs\",\"diagnostic\":{\"range\":{\"start\":{\"line\":3,\"character\":12},\"end\":{\"line\":3,\"character\":18}},\"message\":\"type error: expected (Double, Qubit), found Qubit\",\"severity\":\"error\",\"code\":\"Qsc.TypeCk.TyMismatch\"},\"stack\":null}]","success":false,"type":"Result"}"#]].assert_eq(msg);
             count.set(count.get() + 1);
         },
         1,
@@ -251,9 +251,9 @@ fn test_run_error_program_multiple_shots() {
     )
     .expect("code should compile and run");
     expect![[r#"
-        {"result":{"code":"Qsc.Eval.QubitUniqueness","message":"runtime error: qubits in invocation are not unique","range":{"end":{"character":1,"line":0},"start":{"character":0,"line":0}},"severity":"error"},"success":false,"type":"Result"}
-        {"result":{"code":"Qsc.Eval.QubitUniqueness","message":"runtime error: qubits in invocation are not unique","range":{"end":{"character":1,"line":0},"start":{"character":0,"line":0}},"severity":"error"},"success":false,"type":"Result"}
-        {"result":{"code":"Qsc.Eval.QubitUniqueness","message":"runtime error: qubits in invocation are not unique","range":{"end":{"character":1,"line":0},"start":{"character":0,"line":0}},"severity":"error"},"success":false,"type":"Result"}"#]]
+        {"result":[{"diagnostic":{"code":"Qsc.Eval.QubitUniqueness","message":"runtime error: qubits in invocation are not unique","range":{"end":{"character":53,"line":66},"start":{"character":36,"line":66}},"severity":"error"},"document":"intrinsic.qs","stack":"Error: qubits in invocation are not unique\nCall stack:\n    at QIR.Intrinsic.__quantum__qis__cx__body in qir.qs\n    at Microsoft.Quantum.Intrinsic.CNOT in intrinsic.qs\n    at Test.Main in test.qs\n"}],"success":false,"type":"Result"}
+        {"result":[{"diagnostic":{"code":"Qsc.Eval.QubitUniqueness","message":"runtime error: qubits in invocation are not unique","range":{"end":{"character":53,"line":66},"start":{"character":36,"line":66}},"severity":"error"},"document":"intrinsic.qs","stack":"Error: qubits in invocation are not unique\nCall stack:\n    at QIR.Intrinsic.__quantum__qis__cx__body in qir.qs\n    at Microsoft.Quantum.Intrinsic.CNOT in intrinsic.qs\n    at Test.Main in test.qs\n"}],"success":false,"type":"Result"}
+        {"result":[{"diagnostic":{"code":"Qsc.Eval.QubitUniqueness","message":"runtime error: qubits in invocation are not unique","range":{"end":{"character":53,"line":66},"start":{"character":36,"line":66}},"severity":"error"},"document":"intrinsic.qs","stack":"Error: qubits in invocation are not unique\nCall stack:\n    at QIR.Intrinsic.__quantum__qis__cx__body in qir.qs\n    at Microsoft.Quantum.Intrinsic.CNOT in intrinsic.qs\n    at Test.Main in test.qs\n"}],"success":false,"type":"Result"}"#]]
     .assert_eq(&output.join("\n"));
 }
 
@@ -279,11 +279,11 @@ fn test_run_error_program_multiple_shots_qubit_leak() {
     .expect("code should compile and run");
 
     // Spot check the results to make sure we're getting the right error.
-    expect![[r#"{"result":{"code":"Qsc.Eval.ReleasedQubitNotZero","message":"runtime error: Qubit0 released while not in |0⟩ state\n\nhelp: qubits should be returned to the |0⟩ state before being released to satisfy the assumption that allocated qubits start in the |0⟩ state","range":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"code","span":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}}},"message":"Qubit0"}],"severity":"error"},"success":false,"type":"Result"}"#]]
+    expect![[r#"{"result":[{"diagnostic":{"code":"Qsc.Eval.ReleasedQubitNotZero","message":"runtime error: Qubit0 released while not in |0⟩ state\n\nhelp: qubits should be returned to the |0⟩ state before being released to satisfy the assumption that allocated qubits start in the |0⟩ state","range":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"code","span":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}}},"message":"Qubit0"}],"severity":"error"},"document":"code","stack":"Error: Qubit0 released while not in |0⟩ state\nCall stack:\n    at QIR.Runtime.__quantum__rt__qubit_release in core/qir.qs\n    at Test.Main in code\n"}],"success":false,"type":"Result"}"#]]
         .assert_eq(&output[0]);
-    expect![[r#"{"result":{"code":"Qsc.Eval.ReleasedQubitNotZero","message":"runtime error: Qubit0 released while not in |0⟩ state\n\nhelp: qubits should be returned to the |0⟩ state before being released to satisfy the assumption that allocated qubits start in the |0⟩ state","range":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"code","span":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}}},"message":"Qubit0"}],"severity":"error"},"success":false,"type":"Result"}"#]]
+    expect![[r#"{"result":[{"diagnostic":{"code":"Qsc.Eval.ReleasedQubitNotZero","message":"runtime error: Qubit0 released while not in |0⟩ state\n\nhelp: qubits should be returned to the |0⟩ state before being released to satisfy the assumption that allocated qubits start in the |0⟩ state","range":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"code","span":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}}},"message":"Qubit0"}],"severity":"error"},"document":"code","stack":"Error: Qubit0 released while not in |0⟩ state\nCall stack:\n    at QIR.Runtime.__quantum__rt__qubit_release in core/qir.qs\n    at Test.Main in code\n"}],"success":false,"type":"Result"}"#]]
         .assert_eq(&output[50]);
-    expect![[r#"{"result":{"code":"Qsc.Eval.ReleasedQubitNotZero","message":"runtime error: Qubit0 released while not in |0⟩ state\n\nhelp: qubits should be returned to the |0⟩ state before being released to satisfy the assumption that allocated qubits start in the |0⟩ state","range":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"code","span":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}}},"message":"Qubit0"}],"severity":"error"},"success":false,"type":"Result"}"#]]
+    expect![[r#"{"result":[{"diagnostic":{"code":"Qsc.Eval.ReleasedQubitNotZero","message":"runtime error: Qubit0 released while not in |0⟩ state\n\nhelp: qubits should be returned to the |0⟩ state before being released to satisfy the assumption that allocated qubits start in the |0⟩ state","range":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"code","span":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}}},"message":"Qubit0"}],"severity":"error"},"document":"code","stack":"Error: Qubit0 released while not in |0⟩ state\nCall stack:\n    at QIR.Runtime.__quantum__rt__qubit_release in core/qir.qs\n    at Test.Main in code\n"}],"success":false,"type":"Result"}"#]]
         .assert_eq(&output[99]);
 }
 
@@ -305,9 +305,9 @@ fn test_runtime_error_with_span() {
     )
     .expect("code should compile and run");
     expect![[r#"
-        {"result":{"code":"Qsc.Eval.UserFail","message":"runtime error: program failed: hello","range":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"test.qs","span":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}}},"message":"explicit fail"}],"severity":"error"},"success":false,"type":"Result"}
-        {"result":{"code":"Qsc.Eval.UserFail","message":"runtime error: program failed: hello","range":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"test.qs","span":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}}},"message":"explicit fail"}],"severity":"error"},"success":false,"type":"Result"}
-        {"result":{"code":"Qsc.Eval.UserFail","message":"runtime error: program failed: hello","range":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"test.qs","span":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}}},"message":"explicit fail"}],"severity":"error"},"success":false,"type":"Result"}"#]]
+        {"result":[{"diagnostic":{"code":"Qsc.Eval.UserFail","message":"runtime error: program failed: hello","range":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"test.qs","span":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}}},"message":"explicit fail"}],"severity":"error"},"document":"test.qs","stack":"Error: program failed: hello\nCall stack:\n    at Test.Main in test.qs\n"}],"success":false,"type":"Result"}
+        {"result":[{"diagnostic":{"code":"Qsc.Eval.UserFail","message":"runtime error: program failed: hello","range":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"test.qs","span":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}}},"message":"explicit fail"}],"severity":"error"},"document":"test.qs","stack":"Error: program failed: hello\nCall stack:\n    at Test.Main in test.qs\n"}],"success":false,"type":"Result"}
+        {"result":[{"diagnostic":{"code":"Qsc.Eval.UserFail","message":"runtime error: program failed: hello","range":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"test.qs","span":{"end":{"character":20,"line":3},"start":{"character":8,"line":3}}},"message":"explicit fail"}],"severity":"error"},"document":"test.qs","stack":"Error: program failed: hello\nCall stack:\n    at Test.Main in test.qs\n"}],"success":false,"type":"Result"}"#]]
     .assert_eq(&output.join("\n"));
 }
 
@@ -342,7 +342,7 @@ fn test_runtime_error_in_another_file_with_project() {
         1,
     )
     .expect("code should compile and run");
-    expect![[r#"{"result":{"code":"Qsc.Eval.UserFail","message":"runtime error: program failed: hello","range":{"end":{"character":1,"line":0},"start":{"character":0,"line":0}},"related":[{"location":{"source":"test2.qs","span":{"end":{"character":20,"line":2},"start":{"character":8,"line":2}}},"message":"explicit fail"}],"severity":"error"},"success":false,"type":"Result"}"#]]
+    expect![[r#"{"result":[{"diagnostic":{"code":"Qsc.Eval.UserFail","message":"runtime error: program failed: hello","range":{"end":{"character":20,"line":2},"start":{"character":8,"line":2}},"related":[{"location":{"source":"test2.qs","span":{"end":{"character":20,"line":2},"start":{"character":8,"line":2}}},"message":"explicit fail"}],"severity":"error"},"document":"test2.qs","stack":"Error: program failed: hello\nCall stack:\n    at Test.other in test2.qs\n    at Test.Main in test1.qs\n"}],"success":false,"type":"Result"}"#]]
     .assert_eq(&output.join("\n"));
 }
 
@@ -379,7 +379,7 @@ fn test_runtime_error_with_failure_in_main_file_project() {
         1,
     )
     .expect("code should compile and run");
-    expect![[r#"{"result":{"code":"Qsc.Eval.UserFail","message":"runtime error: program failed: hello","range":{"end":{"character":20,"line":6},"start":{"character":8,"line":6}},"related":[{"location":{"source":"test1.qs","span":{"end":{"character":20,"line":6},"start":{"character":8,"line":6}}},"message":"explicit fail"}],"severity":"error"},"success":false,"type":"Result"}"#]]
+    expect![[r#"{"result":[{"diagnostic":{"code":"Qsc.Eval.UserFail","message":"runtime error: program failed: hello","range":{"end":{"character":20,"line":6},"start":{"character":8,"line":6}},"related":[{"location":{"source":"test1.qs","span":{"end":{"character":20,"line":6},"start":{"character":8,"line":6}}},"message":"explicit fail"}],"severity":"error"},"document":"test1.qs","stack":"Error: program failed: hello\nCall stack:\n    at Test.failing_call in test1.qs\n    at Test.other in test2.qs\n    at Test.Main in test1.qs\n"}],"success":false,"type":"Result"}"#]]
     .assert_eq(&output.join("\n"));
 }
 
@@ -404,7 +404,7 @@ fn test_compile_error_related_spans() {
         1,
     )
     .expect_err("code should fail to compile");
-    expect![[r#"{"result":{"code":"Qsc.Resolve.Ambiguous","message":"name error: `DumpMachine` could refer to the item in `Other` or `Microsoft.Quantum.Diagnostics`","range":{"end":{"character":19,"line":6},"start":{"character":8,"line":6}},"related":[{"location":{"source":"test.qs","span":{"end":{"character":19,"line":6},"start":{"character":8,"line":6}}},"message":"ambiguous name"},{"location":{"source":"test.qs","span":{"end":{"character":14,"line":2},"start":{"character":9,"line":2}}},"message":"found in this namespace"},{"location":{"source":"test.qs","span":{"end":{"character":38,"line":3},"start":{"character":9,"line":3}}},"message":"and also in this namespace"}],"severity":"error"},"success":false,"type":"Result"}"#]]
+    expect![[r#"{"result":"[{\"document\":\"test.qs\",\"diagnostic\":{\"range\":{\"start\":{\"line\":6,\"character\":8},\"end\":{\"line\":6,\"character\":19}},\"message\":\"name error: `DumpMachine` could refer to the item in `Other` or `Microsoft.Quantum.Diagnostics`\",\"severity\":\"error\",\"code\":\"Qsc.Resolve.Ambiguous\",\"related\":[{\"location\":{\"source\":\"test.qs\",\"span\":{\"start\":{\"line\":6,\"character\":8},\"end\":{\"line\":6,\"character\":19}}},\"message\":\"ambiguous name\"},{\"location\":{\"source\":\"test.qs\",\"span\":{\"start\":{\"line\":2,\"character\":9},\"end\":{\"line\":2,\"character\":14}}},\"message\":\"found in this namespace\"},{\"location\":{\"source\":\"test.qs\",\"span\":{\"start\":{\"line\":3,\"character\":9},\"end\":{\"line\":3,\"character\":38}}},\"message\":\"and also in this namespace\"}]},\"stack\":null}]","success":false,"type":"Result"}"#]]
     .assert_eq(&output.join("\n"));
 }
 
@@ -427,7 +427,7 @@ fn test_runtime_error_related_spans() {
         1,
     )
     .expect("code should compile and run");
-    expect![[r#"{"result":{"code":"Qsc.Eval.ReleasedQubitNotZero","message":"runtime error: Qubit0 released while not in |0⟩ state\n\nhelp: qubits should be returned to the |0⟩ state before being released to satisfy the assumption that allocated qubits start in the |0⟩ state","range":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"test.qs","span":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}}},"message":"Qubit0"}],"severity":"error"},"success":false,"type":"Result"}"#]]
+    expect![[r#"{"result":[{"diagnostic":{"code":"Qsc.Eval.ReleasedQubitNotZero","message":"runtime error: Qubit0 released while not in |0⟩ state\n\nhelp: qubits should be returned to the |0⟩ state before being released to satisfy the assumption that allocated qubits start in the |0⟩ state","range":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}},"related":[{"location":{"source":"test.qs","span":{"end":{"character":24,"line":3},"start":{"character":8,"line":3}}},"message":"Qubit0"}],"severity":"error"},"document":"test.qs","stack":"Error: Qubit0 released while not in |0⟩ state\nCall stack:\n    at QIR.Runtime.__quantum__rt__qubit_release in core/qir.qs\n    at Test.Main in test.qs\n"}],"success":false,"type":"Result"}"#]]
     .assert_eq(&output.join("\n"));
 }
 
