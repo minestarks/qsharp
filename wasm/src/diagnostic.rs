@@ -43,18 +43,21 @@ serializable_type! {
     }"#
 }
 
+serializable_type! {
+    QSharpError,
+    {
+        document: String, // maybe source URI, not guaranteed
+        diagnostic: VSDiagnostic,
+        stack: Option<String>,
+    },
+    r#"export interface IQSharpError {
+        document: string;
+        diagnostic: VSDiagnostic;
+        stack?: string;
+    }"#
+}
+
 impl VSDiagnostic {
-    pub fn json(&self) -> serde_json::Value {
-        serde_json::to_value(self).expect("serializing VSDiagnostic should succeed")
-    }
-
-    /// Creates a [`VSDiagnostic`] from an interpreter error. See `VSDiagnostic::new()` for details.
-    pub(crate) fn from_interpret_error(source_name: &str, err: &interpret::Error) -> Self {
-        let labels = interpret_error_labels(err);
-
-        Self::new(labels, source_name, err)
-    }
-
     /// Creates a [`VSDiagnostic`] from a compiler error. See `VSDiagnostic::new()` for details.
     pub(crate) fn from_compile_error(source_name: &str, err: &qsc::compile::Error) -> Self {
         let labels = error_labels(err);
@@ -185,9 +188,7 @@ where
 /// - the first element of the tuple is the document URI, or <project> if the error doesn't have a span
 /// - the second element of the tuple is a [`VSDiagnostic`] that represents the error
 /// - the third element is the stack trace
-pub fn interpret_errors_into_vs_diagnostics(
-    errs: &[interpret::Error],
-) -> Vec<(String, VSDiagnostic, Option<String>)> {
+pub fn interpret_errors_into_qsharp_errors(errs: &[interpret::Error]) -> Vec<QSharpError> {
     let default_uri = "<project>";
     errs.iter()
         .map(|err| {
@@ -205,7 +206,11 @@ pub fn interpret_errors_into_vs_diagnostics(
                 None
             };
 
-            (doc, vsdiagnostic, stack_trace)
+            QSharpError {
+                document: doc,
+                diagnostic: vsdiagnostic,
+                stack: stack_trace,
+            }
         })
         .collect()
 }

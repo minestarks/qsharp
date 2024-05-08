@@ -59,8 +59,15 @@ export function createDebugConsoleEventTarget(out: (message: string) => void) {
   });
 
   eventTarget.addEventListener("Result", (evt) => {
-    const resultJson = JSON.stringify(evt.detail.value, null, 2);
-    out(`Result: ${resultJson}`);
+    const val = evt.detail.success
+      ? evt.detail.value
+      : evt.detail.value.length > 0
+        ? evt.detail.value[0].stack
+        : "Unknown error";
+
+    const result = typeof val === "string" ? val : JSON.stringify(val, null, 2);
+
+    out(`Result: ${result}`);
   });
   return eventTarget;
 }
