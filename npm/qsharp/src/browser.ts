@@ -170,8 +170,8 @@ export type {
   IQSharpError,
   IRange,
   IStackFrame,
-  IWorkspaceEdit,
   IStructStepResult,
+  IWorkspaceEdit,
   VSDiagnostic,
 } from "../lib/web/qsc_wasm.js";
 export { type Dump, type ShotResult } from "./compiler/common.js";

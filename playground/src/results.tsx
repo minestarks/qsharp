@@ -1,14 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-import { QscEventTarget, ShotResult, VSDiagnostic } from "qsharp-lang";
 import { useEffect, useState } from "preact/hooks";
-
+import {
+  IQSharpError,
+  QscEventTarget,
+  ShotResult,
+  VSDiagnostic,
+} from "qsharp-lang";
 import { Histogram } from "qsharp-lang/ux";
-import { StateTable } from "./state.js";
 import { ActiveTab } from "./main.js";
+import { StateTable } from "./state.js";
 
-function resultToLabel(result: string | VSDiagnostic): string {
+function resultToLabel(result: string | IQSharpError[]): string {
   if (typeof result !== "string") return "ERROR";
   return result;
 }
@@ -159,7 +163,7 @@ export function ResultsTab(props: {
   const resultLabel =
     typeof resultState.currResult?.result === "string"
       ? resultToLabel(resultState.currResult?.result || "")
-      : `ERROR: ${resultState.currResult?.result.message}`;
+      : `ERROR: ${resultState.currResult?.result[0].diagnostic.message}`;
 
   function moveToIndex(idx: number, filter: string) {
     const results = evtTarget.getResults();
@@ -197,7 +201,7 @@ export function ResultsTab(props: {
     if (!result || result.success || typeof result.result === "string") {
       props.onShotError();
     } else {
-      props.onShotError(result.result);
+      props.onShotError(result.result[0].diagnostic);
     }
   }
 
