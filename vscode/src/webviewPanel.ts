@@ -4,8 +4,8 @@
 import {
   IOperationInfo,
   QscEventTarget,
-  VSDiagnostic,
   getCompilerWorker,
+  IQSharpError,
   log,
 } from "qsharp-lang";
 import {
@@ -284,7 +284,7 @@ export function registerWebViewCommands(context: ExtensionContext) {
 
       const associationId = getRandomGuid();
       sendTelemetryEvent(EventType.TriggerHistogram, { associationId }, {});
-      function resultToLabel(result: string | VSDiagnostic): string {
+      function resultToLabel(result: string | IQSharpError[]): string {
         if (typeof result !== "string") return "ERROR";
         return result;
       }

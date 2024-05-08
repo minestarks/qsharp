@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-import { type VSDiagnostic } from "../../lib/web/qsc_wasm.js";
+import { type IQSharpError } from "../../lib/web/qsc_wasm.js";
 
 // Each DumpMachine output is represented as an object where each key is a basis
 // state, e.g., "|3>" and the value is the [real, imag] parts of the complex amplitude.
@@ -11,7 +11,11 @@ export type Dump = {
 
 export type Result =
   | { success: true; value: string }
-  | { success: false; value: VSDiagnostic };
+  | {
+      success: false;
+      // TODO: NOOO backwards compatibility noo
+      value: IQSharpError[];
+    };
 
 interface DumpMsg {
   type: "DumpMachine";
@@ -102,6 +106,6 @@ export function eventStringToMsg(msg: string): EventMsg | null {
 
 export type ShotResult = {
   success: boolean;
-  result: string | VSDiagnostic;
+  result: string | IQSharpError[];
   events: Array<MessageMsg | DumpMsg | MatrixMsg>;
 };

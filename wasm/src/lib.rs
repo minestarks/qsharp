@@ -4,7 +4,7 @@
 #![allow(unknown_lints, clippy::empty_docs)]
 #![allow(non_snake_case)]
 
-use diagnostic::{interpret_errors_into_qsharp_errors, VSDiagnostic};
+use diagnostic::interpret_errors_into_qsharp_errors;
 use katas::check_solution;
 use language_service::IOperationInfo;
 use num_bigint::BigUint;
@@ -151,6 +151,13 @@ fn interpret_errors_into_qsharp_errors_json(errs: Vec<qsc::interpret::Error>) ->
 
 fn compile_errors_into_qsharp_errors_json(errs: Vec<qsc::compile::Error>) -> String {
     interpret_errors_into_qsharp_errors_json(errs.into_iter().map(Into::into).collect())
+}
+
+fn interpret_errors_into_qsharp_errors_json_value(
+    errors: &[interpret::Error],
+) -> serde_json::Value {
+    serde_json::to_value(interpret_errors_into_qsharp_errors(errors))
+        .expect("json serialization should succeed")
 }
 
 #[wasm_bindgen]
@@ -326,12 +333,6 @@ fn run_internal_with_features<F>(
 where
     F: FnMut(&str),
 {
-    let source_name = sources
-        .iter()
-        .map(|x| x.name.clone())
-        .next()
-        .expect("There must be a source to process")
-        .to_string();
     let mut out = CallbackReceiver { event_cb };
     let mut interpreter = match interpret::Interpreter::new(
         sources,
@@ -343,12 +344,11 @@ where
     ) {
         Ok(interpreter) => interpreter,
         Err(err) => {
-            // TODO: handle multiple errors
-            // https://github.com/microsoft/qsharp/issues/149
+            // TODO: still wonky as all heck
             let e = err[0].clone();
-            let diag = VSDiagnostic::from_interpret_error(&source_name, &e);
+            let es = interpret_errors_into_qsharp_errors_json(err);
             let msg = json!(
-                {"type": "Result", "success": false, "result": diag});
+                {"type": "Result", "success": false, "result": es});
             (out.event_cb)(&msg.to_string());
             return Err(Box::new(e));
         }
@@ -360,10 +360,8 @@ where
         let msg: serde_json::Value = match result {
             Ok(value) => serde_json::Value::String(value.to_string()),
             Err(errors) => {
-                // TODO: handle multiple errors
-                // https://github.com/microsoft/qsharp/issues/149
                 success = false;
-                VSDiagnostic::from_interpret_error(&source_name, &errors[0]).json()
+                interpret_errors_into_qsharp_errors_json_value(&errors)
             }
         };
 
@@ -427,12 +425,10 @@ fn check_exercise_solution_internal(
     let (exercise_success, msg) = match result {
         Ok(value) => (value, serde_json::Value::String(value.to_string())),
         Err(errors) => {
-            // TODO: handle multiple errors
-            // https://github.com/microsoft/qsharp/issues/149
             runtime_success = false;
             (
                 false,
-                VSDiagnostic::from_interpret_error(source_name, &errors[0]).json(),
+                interpret_errors_into_qsharp_errors_json_value(&errors),
             )
         }
     };

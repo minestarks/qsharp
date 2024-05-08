@@ -3,7 +3,7 @@
 
 use crate::line_column::{Location, Range};
 use crate::project_system::{into_qsc_args, ProgramConfig};
-use crate::{serializable_type, CallbackReceiver};
+use crate::{interpret_errors_into_qsharp_errors_json_value, serializable_type, CallbackReceiver};
 use qsc::fir::StmtId;
 use qsc::fmt_complex;
 use qsc::interpret::{Debugger, Error, StepAction, StepResult};
@@ -142,19 +142,12 @@ impl DebugService {
 
         let msg: Option<serde_json::Value> = match &result {
             Ok(value) => match value {
-                qsc::interpret::StepResult::Return(value) => {
-                    Some(serde_json::Value::String(value.to_string()))
-                }
+                qsc::interpret::StepResult::Return(value) => Some(value.to_string().into()),
                 _ => None,
             },
             Err(errors) => {
-                // TODO: handle multiple errors
-                // https://github.com/microsoft/qsharp/issues/149
                 success = false;
-                errors[0]
-                    .stack_trace()
-                    .clone()
-                    .map(serde_json::Value::String)
+                Some(interpret_errors_into_qsharp_errors_json_value(errors))
             }
         };
         if let Some(value) = msg {

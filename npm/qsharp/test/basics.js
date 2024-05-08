@@ -170,7 +170,7 @@ async function runExerciseSolutionCheck(exercise, solution) {
     if (typeof error === "string") {
       errorMsg += "Result = " + error + "\n";
     } else {
-      errorMsg += "Message = " + error.message + "\n";
+      errorMsg += "Message = " + error[0].diagnostic.message + "\n";
     }
   }
 
