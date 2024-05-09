@@ -15,6 +15,11 @@ module.exports = {
     "/vscode/out/",
     "/vscode/test/out/",
     "/widgets/src/qsharp_widgets/static/",
+    "/circuit_vis/example/",
+    "/circuit_vis/lib/",
+    "/circuit_vis/coverage/",
+    "/circuit_vis/dist/",
+    "/circuit_vis/*.config.js",
   ],
   env: {
     browser: true,
