@@ -1,13 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import { Metadata, GateType } from "./metadata";
-import {
-  minGateWidth,
-  labelPadding,
-  labelFontSize,
-  argsFontSize,
-} from "./constants";
+import { Metadata, GateType } from './metadata';
+import { minGateWidth, labelPadding, labelFontSize, argsFontSize, annotationGateWidth } from './constants';
 
 /**
  * Generate a UUID using `Math.random`.
@@ -17,11 +12,11 @@ import {
  * @returns UUID string.
  */
 const createUUID = (): string =>
-  "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0,
-      v = c == "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0,
+            v = c == 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
 
 /**
  * Calculate the width of a gate, given its metadata.
@@ -30,27 +25,23 @@ const createUUID = (): string =>
  *
  * @returns Width of given gate (in pixels).
  */
-const getGateWidth = ({
-  type,
-  label,
-  displayArgs,
-  width,
-}: Metadata): number => {
-  if (width > 0) return width;
+const getGateWidth = ({ type, label, displayArgs, width }: Metadata): number => {
+    if (width > 0) return width;
 
-  switch (type) {
-    case GateType.Measure:
-    case GateType.Cnot:
-    case GateType.Swap:
-      return minGateWidth;
-    default: {
-      const labelWidth = _getStringWidth(label);
-      const argsWidth =
-        displayArgs != null ? _getStringWidth(displayArgs, argsFontSize) : 0;
-      const textWidth = Math.max(labelWidth, argsWidth) + labelPadding * 2;
-      return Math.max(minGateWidth, textWidth);
+    switch (type) {
+        case GateType.Measure:
+        case GateType.Cnot:
+        case GateType.Swap:
+            return minGateWidth;
+        case GateType.Annotation:
+            return annotationGateWidth;
+        default: {
+            const labelWidth = _getStringWidth(label);
+            const argsWidth = displayArgs != null ? _getStringWidth(displayArgs, argsFontSize) : 0;
+            const textWidth = Math.max(labelWidth, argsWidth) + labelPadding * 2;
+            return Math.max(minGateWidth, textWidth);
+        }
     }
-  }
 };
 
 /**
@@ -61,17 +52,14 @@ const getGateWidth = ({
  *
  * @returns Pixel width of given string.
  */
-const _getStringWidth = (
-  text: string,
-  fontSize: number = labelFontSize,
-): number => {
-  const canvas: HTMLCanvasElement = document.createElement("canvas");
-  const context: CanvasRenderingContext2D | null = canvas.getContext("2d");
-  if (context == null) throw new Error("Null canvas");
+const _getStringWidth = (text: string, fontSize: number = labelFontSize): number => {
+    const canvas: HTMLCanvasElement = document.createElement('canvas');
+    const context: CanvasRenderingContext2D | null = canvas.getContext('2d');
+    if (context == null) throw new Error('Null canvas');
 
-  context.font = `${fontSize}px Arial`;
-  const metrics: TextMetrics = context.measureText(text);
-  return metrics.width;
+    context.font = `${fontSize}px Arial`;
+    const metrics: TextMetrics = context.measureText(text);
+    return metrics.width;
 };
 
 export { createUUID, getGateWidth, _getStringWidth };

@@ -14,7 +14,10 @@ const MAX_OPERATIONS = 10000;
 const MAX_QUBITS = 1000;
 
 // This component is shared by the Python widget and the VS Code panel
-export function Circuit(props: { circuit: qviz.Circuit }) {
+export function Circuit(props: {
+  circuit: qviz.Circuit;
+  mdRender: (input: string) => string;
+}) {
   const circuit = props.circuit;
   const unrenderable =
     circuit.qubits.length === 0 ||
@@ -29,13 +32,16 @@ export function Circuit(props: { circuit: qviz.Circuit }) {
           operations={props.circuit.operations.length}
         />
       ) : (
-        <ZoomableCircuit circuit={props.circuit} />
+        <ZoomableCircuit {...props} />
       )}
     </div>
   );
 }
 
-function ZoomableCircuit(props: { circuit: qviz.Circuit }) {
+function ZoomableCircuit(props: {
+  circuit: qviz.Circuit;
+  mdRender: (input: string) => string;
+}) {
   const circuitDiv = useRef<HTMLDivElement>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [rendering, setRendering] = useState(true);
@@ -51,7 +57,7 @@ function ZoomableCircuit(props: { circuit: qviz.Circuit }) {
     if (rendering) {
       const container = circuitDiv.current!;
       // Draw the circuit - may take a while for large circuits
-      const svg = renderCircuit(props.circuit, container);
+      const svg = renderCircuit(props.circuit, props.mdRender, container);
       // Calculate the initial zoom level based on the container width
       const initialZoom = calculateZoomToFit(container, svg as SVGElement);
       // Set the initial zoom level
@@ -100,13 +106,65 @@ function ZoomableCircuit(props: { circuit: qviz.Circuit }) {
     }
   }
 
-  function renderCircuit(circuit: qviz.Circuit, container: HTMLDivElement) {
-    qviz.draw(circuit, container);
+  function renderCircuit(
+    circuit: qviz.Circuit,
+    mdRender: (input: string) => string,
+    container: HTMLDivElement,
+  ) {
+    qviz.drawWithMd(circuit, container, mdRender);
 
     // quantum-viz hardcodes the styles in the SVG.
     // Remove the style elements -- we'll define the styles in our own CSS.
     const styleElements = container.querySelectorAll("style");
     styleElements?.forEach((tag) => tag.remove());
+
+    // Render the markdown in the annotations
+    const texts = container.querySelectorAll(".gate g g text");
+    texts.forEach((text) => {
+      if (text.innerHTML === "annotation") {
+        text.innerHTML = "";
+        return;
+      }
+      console.log(text.innerHTML);
+      const rendered = mdRender(text.innerHTML);
+      if (rendered === text.innerHTML) {
+        return;
+      }
+
+      const greatGrandParent =
+        text.parentElement!.parentElement!.parentElement!;
+      const rect = greatGrandParent.querySelectorAll(".gate-unitary")[0];
+
+      if (rect) {
+        rect.setAttribute("style", `visibility: hidden`);
+        const parentX = parseFloat(rect.attributes.getNamedItem("x")!.value);
+        const parentY = parseFloat(rect.attributes.getNamedItem("y")!.value);
+        const parentWidth = parseFloat(
+          rect.attributes.getNamedItem("width")!.value,
+        );
+        const parentHeight = parseFloat(
+          rect.attributes.getNamedItem("height")!.value,
+        );
+
+        // const width = parentWidth;
+        // const height = parentHeight;
+        const x = parentX + parentWidth / 4;
+        const y = parentY + parentHeight + 100;
+
+        text.innerHTML = "";
+        text.parentElement!.innerHTML += `
+      <foreignObject x="${x}" y="${y}" width="200" height="200">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          ${rendered}
+        </div>
+      </foreignObject>
+      `;
+
+        console.log("inserted foreign object");
+      }
+
+      console.log(rendered);
+    });
 
     return container.getElementsByClassName("qviz")[0]!;
   }
@@ -210,7 +268,9 @@ export function CircuitPanel(props: CircuitProps) {
           <Spinner />
         </div>
       ) : null}
-      {props.circuit ? <Circuit circuit={props.circuit}></Circuit> : null}
+      {props.circuit ? (
+        <Circuit circuit={props.circuit} mdRender={props.mdRender}></Circuit>
+      ) : null}
     </div>
   );
 }

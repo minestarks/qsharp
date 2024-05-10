@@ -316,7 +316,7 @@ pub struct Chain<T1, T2> {
 impl<T1, T2> Chain<T1, T2>
 where
     T1: Backend,
-    T2: Backend,
+    T2: Backend + Annotator,
 {
     pub fn new(primary: T1, chained: T2) -> Chain<T1, T2> {
         Chain {
@@ -329,7 +329,7 @@ where
 impl<T1, T2> Backend for Chain<T1, T2>
 where
     T1: Backend,
-    T2: Backend,
+    T2: Backend + Annotator,
 {
     type ResultType = T1::ResultType;
 
@@ -462,7 +462,9 @@ where
         &mut self,
     ) -> (Vec<(num_bigint::BigUint, num_complex::Complex<f64>)>, usize) {
         let _ = self.chained.capture_quantum_state();
-        self.main.capture_quantum_state()
+        let (state, num_qubits) = self.main.capture_quantum_state();
+        self.chained.annotate_quantum_state(&state, num_qubits);
+        (state, num_qubits)
     }
 
     fn qubit_is_zero(&mut self, q: usize) -> bool {
@@ -479,4 +481,8 @@ where
         self.chained.set_seed(seed);
         self.main.set_seed(seed);
     }
+}
+
+pub trait Annotator {
+    fn annotate_quantum_state(&mut self, state: &[(BigUint, Complex<f64>)], count: usize);
 }

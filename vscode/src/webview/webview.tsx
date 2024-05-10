@@ -175,7 +175,12 @@ function App({ state }: { state: State }) {
         />
       );
     case "circuit":
-      return <CircuitPanel {...state.props}></CircuitPanel>;
+      return (
+        <CircuitPanel
+          {...state.props}
+          mdRender={(input) => md.renderInline(input)}
+        ></CircuitPanel>
+      );
     case "help":
       return <HelpPage />;
     default:

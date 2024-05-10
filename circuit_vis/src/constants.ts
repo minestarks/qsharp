@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 // SVG Namespace
-export const svgNS = "http://www.w3.org/2000/svg";
+export const svgNS = 'http://www.w3.org/2000/svg';
 
 // Display attributes
 /** Left padding of SVG. */
@@ -13,6 +13,7 @@ export const startX = 80;
 export const startY = 40;
 /** Minimum width of each gate. */
 export const minGateWidth = 40;
+export const annotationGateWidth = 20;
 /** Height of each gate. */
 export const gateHeight = 40;
 /** Padding on each side of gate. */

@@ -9,7 +9,11 @@ use num_bigint::BigUint;
 use num_complex::Complex;
 use qsc_codegen::remapper::{HardwareId, Remapper};
 use qsc_data_structures::index_map::IndexMap;
-use qsc_eval::{backend::Backend, val::Value};
+use qsc_eval::{
+    backend::{Annotator, Backend},
+    state::get_latex,
+    val::Value,
+};
 use std::{fmt::Write, mem::take, rc::Rc};
 
 /// Backend implementation that builds a circuit representation.
@@ -17,6 +21,7 @@ pub struct Builder {
     circuit: Circuit,
     config: Config,
     remapper: Remapper,
+    has_annotation: bool,
 }
 
 impl Backend for Builder {
@@ -182,6 +187,7 @@ impl Backend for Builder {
     }
 
     fn capture_quantum_state(&mut self) -> (Vec<(BigUint, Complex<f64>)>, usize) {
+        self.has_annotation = true;
         (Vec::new(), 0)
     }
 
@@ -223,6 +229,7 @@ impl Builder {
             circuit: Circuit::default(),
             config,
             remapper: Remapper::default(),
+            has_annotation: false,
         }
     }
 
@@ -279,8 +286,19 @@ impl Builder {
             }
         }
 
+        let num_qubits = self.remapper.num_qubits();
+        // if self.has_annotation {
+        //     num_qubits += 1;
+        // }
+
+        // for o in &mut circuit.operations {
+        //     if o.gate == "annotation" {
+        //         o.targets = vec![Register::quantum(num_qubits - 1)]
+        //     }
+        // }
+
         // add qubit declarations
-        for i in 0..self.remapper.num_qubits() {
+        for i in 0..num_qubits {
             let num_measurements = by_qubit.get(i).map_or(0, |c| *c);
             circuit.qubits.push(crate::circuit::Qubit {
                 id: i,
@@ -367,6 +385,38 @@ impl Builder {
             classical_args.pop();
             classical_args.pop();
         }
+    }
+}
+
+impl Annotator for Builder {
+    fn annotate_quantum_state(&mut self, state: &[(BigUint, Complex<f64>)], count: usize) {
+        let mut result = get_latex(state, count);
+
+        if result.is_empty() {
+            result = String::new();
+            for (idx, val) in state {
+                let mut idx_str = format!("{:0width$b}", idx, width = count);
+                idx_str.insert(0, '|');
+                idx_str.push('⟩');
+                result.push_str(&format!("{}: {}\n", idx_str, val));
+            }
+        }
+
+        self.circuit.operations.push(Operation {
+            gate: "annotation".into(),
+            display_args: Some(result),
+            is_controlled: false,
+            is_adjoint: false,
+            is_measurement: false,
+            // controls: (0..self.remapper.num_qubits())
+            //     .map(Register::quantum)
+            //     .collect(),
+            controls: vec![],
+            targets: (0..self.remapper.num_qubits())
+                .map(Register::quantum)
+                .collect(),
+            children: vec![],
+        });
     }
 }
 
