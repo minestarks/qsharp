@@ -282,10 +282,10 @@ const _opToMetadata = (op: Operation | null, registers: RegisterMap): Metadata =
         metadata.type = GateType.Annotation;
         metadata.label = displayArgs!;
 
-        // Set targets to first and last quantum registers so we can render the  box
-        // around all quantum registers.
-        const qubitsY: number[] = Object.values(registers).map(({ y }) => y);
-        if (qubitsY.length > 0) metadata.targetsY = [Math.min(...qubitsY), Math.max(...qubitsY)];
+        // Set targets to first and last quantum registers so we can render the dashed
+        // line across all registers
+        // const qubitsY: number[] = Object.values(registers).map(({ y }) => y);
+        // if (qubitsY.length > 0) metadata.targetsY = [Math.min(...qubitsY), Math.max(...qubitsY)];
     } else {
         // Any other gate treated as a simple unitary gate
         metadata.type = GateType.Unitary;

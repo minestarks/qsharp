@@ -12,6 +12,7 @@ import {
     groupBoxPadding,
     classicalRegHeight,
     nestedGroupPadding,
+    annotationBoxHeight,
 } from '../constants';
 import {
     createSvgElement,
@@ -34,8 +35,8 @@ import {
  *
  * @returns SVG representation of operations.
  */
-const formatGates = (opsMetadata: Metadata[], nestedDepth = 0): SVGElement => {
-    const formattedGates: SVGElement[] = opsMetadata.map((metadata) => _formatGate(metadata, nestedDepth));
+const formatGates = (opsMetadata: Metadata[], nestedDepth = 0, annotationY?: number): SVGElement => {
+    const formattedGates: SVGElement[] = opsMetadata.map((metadata) => _formatGate(metadata, nestedDepth, annotationY));
     return group(formattedGates);
 };
 
@@ -47,7 +48,7 @@ const formatGates = (opsMetadata: Metadata[], nestedDepth = 0): SVGElement => {
  *
  * @returns SVG representation of gate.
  */
-const _formatGate = (metadata: Metadata, nestedDepth = 0): SVGElement => {
+const _formatGate = (metadata: Metadata, nestedDepth = 0, annotationY?: number): SVGElement => {
     const { type, x, controlsY, targetsY, label, displayArgs, width } = metadata;
     switch (type) {
         case GateType.Measure:
@@ -68,7 +69,7 @@ const _formatGate = (metadata: Metadata, nestedDepth = 0): SVGElement => {
         case GateType.ClassicalControlled:
             return _classicalControlled(metadata);
         case GateType.Annotation:
-            return _createGate([_annotation(label, x, [targetsY as number[]])], metadata, nestedDepth);
+            return _createGate([_annotation(label, x, [targetsY as number[]], annotationY!)], metadata, nestedDepth);
         default:
             throw new Error(`ERROR: unknown gate (${label}) of type ${type}.`);
     }
@@ -234,31 +235,28 @@ const _unitary = (
     return group(unitaryBoxes);
 };
 
-const _annotation = (label: string, x: number, y: number[][]): SVGElement => {
+const _annotation = (label: string, x: number, y: number[][], boxY: number): SVGElement => {
     if (y.length === 0) throw new Error(`Failed to render unitary gate (${label}): has no y-values`);
 
     // Render each group as a separate unitary boxes
     const unitaryBoxes: SVGElement[] = y.map((g: number[]) => {
-        const maxY: number = g[g.length - 1],
-            minY: number = g[0];
+        //const controlledDotsSvg: SVGElement[] = controlsY.map((y) => controlDot(x, y));
+
+        const maxY: number = g[g.length - 1];
+        const minY: number = g[0];
         // const height: number = maxY - minY + gateHeight;
 
-        const vertLine: SVGElement = dashedLine(x, minY, x, maxY);
-        return group([vertLine, _annotationBox(label, x, maxY, 200, 100)]);
+        const topLine: SVGElement = line(x, minY, x, maxY);
+        const bottomLine: SVGElement = dashedLine(x, maxY, x, boxY);
+        return group([topLine, bottomLine, _annotationBox(label, x, boxY, 200, annotationBoxHeight)]);
     });
 
     return group(unitaryBoxes);
 };
 
-const _annotationBox = (
-    label: string,
-    x: number,
-    y: number,
-    width: number,
-    height: number = gateHeight,
-): SVGElement => {
+const _annotationBox = (label: string, x: number, y: number, width: number, height: number): SVGElement => {
     console.log(`_annotationBox: ${label}, ${x}, ${y}, ${width}, ${height}`);
-    y -= gateHeight / 2;
+    // y -= gateHeight / 2;
     const uBox: SVGElement = box(x - width / 2, y, width, height);
     const labelY = y + height / 2;
     const labelText: SVGElement = text(label, x, labelY);

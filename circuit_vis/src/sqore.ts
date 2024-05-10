@@ -149,10 +149,13 @@ export class Sqore {
         //   // phantom qubit for the annotation
         //   qubits.push({ id: qubits.length });
         // }
-        const { qubitWires, registers, svgHeight } = formatInputs(qubits);
+        const { qubitWires, registers, svgHeight, annotationY } = formatInputs(
+            qubits,
+            operations.filter((o) => o.gate === 'annotation').length > 0,
+        );
 
         const { metadataList, svgWidth } = processOperations(operations, registers);
-        const formattedGates: SVGElement = formatGates(metadataList);
+        const formattedGates: SVGElement = formatGates(metadataList, 0, annotationY);
         const measureGates: Metadata[] = flatten(metadataList).filter(({ type }) => type === GateType.Measure);
         const formattedRegs: SVGElement = formatRegisters(registers, measureGates, svgWidth);
 

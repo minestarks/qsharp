@@ -13,9 +13,10 @@ export const startX = 80;
 export const startY = 40;
 /** Minimum width of each gate. */
 export const minGateWidth = 40;
-export const annotationGateWidth = 20;
+export const annotationLineWidth = 20;
 /** Height of each gate. */
 export const gateHeight = 40;
+export const annotationBoxHeight = gateHeight;
 /** Padding on each side of gate. */
 export const gatePadding = 10;
 /** Padding on each side of gate label. */

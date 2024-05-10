@@ -137,23 +137,23 @@ function ZoomableCircuit(props: {
 
       if (rect) {
         rect.setAttribute("style", `visibility: hidden`);
-        const parentX = parseFloat(rect.attributes.getNamedItem("x")!.value);
-        const parentY = parseFloat(rect.attributes.getNamedItem("y")!.value);
-        const parentWidth = parseFloat(
+        const rectX = parseFloat(rect.attributes.getNamedItem("x")!.value);
+        const rectY = parseFloat(rect.attributes.getNamedItem("y")!.value);
+        const rectWidth = parseFloat(
           rect.attributes.getNamedItem("width")!.value,
         );
-        const parentHeight = parseFloat(
+        const rectHeight = parseFloat(
           rect.attributes.getNamedItem("height")!.value,
         );
 
-        // const width = parentWidth;
-        // const height = parentHeight;
-        const x = parentX + parentWidth / 4;
-        const y = parentY + parentHeight + 100;
+        const width = rectWidth;
+        const height = rectHeight;
+        const x = rectX;
+        const y = rectY;
 
         text.innerHTML = "";
         text.parentElement!.innerHTML += `
-      <foreignObject x="${x}" y="${y}" width="200" height="200">
+      <foreignObject x="${x}" y="${y}" width="${width}" height="${height}">
         <div xmlns="http://www.w3.org/1999/xhtml">
           ${rendered}
         </div>

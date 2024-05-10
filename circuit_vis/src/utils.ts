@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import { Metadata, GateType } from './metadata';
-import { minGateWidth, labelPadding, labelFontSize, argsFontSize, annotationGateWidth } from './constants';
+import { minGateWidth, labelPadding, labelFontSize, argsFontSize, annotationLineWidth } from './constants';
 
 /**
  * Generate a UUID using `Math.random`.
@@ -34,7 +34,7 @@ const getGateWidth = ({ type, label, displayArgs, width }: Metadata): number => 
         case GateType.Swap:
             return minGateWidth;
         case GateType.Annotation:
-            return annotationGateWidth;
+            return annotationLineWidth;
         default: {
             const labelWidth = _getStringWidth(label);
             const argsWidth = displayArgs != null ? _getStringWidth(displayArgs, argsFontSize) : 0;
