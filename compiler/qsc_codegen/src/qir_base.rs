@@ -100,7 +100,7 @@ impl BaseProfSim {
             self.instrs,
             include_str!("./qir_base/postfix.ll"),
             self.decls,
-            self.remapper.num_qubits(),
+            self.remapper.num_hardware_qubits(),
             self.remapper.num_measurements()
         )
         .expect("writing to string should succeed");
@@ -448,6 +448,13 @@ impl Backend for BaseProfSim {
     }
 
     fn capture_quantum_state(&mut self) -> (Vec<(BigUint, Complex<f64>)>, usize) {
+        (Vec::new(), 0)
+    }
+
+    fn capture_quantum_state_for_qubits(
+        &mut self,
+        _qs: &[usize],
+    ) -> (Vec<(BigUint, Complex<f64>)>, usize) {
         (Vec::new(), 0)
     }
 

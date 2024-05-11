@@ -17,6 +17,8 @@ export const annotationLineWidth = 20;
 /** Height of each gate. */
 export const gateHeight = 40;
 export const annotationBoxHeight = gateHeight;
+export const annotationBoxAvailableRows = 2;
+export const annotationBoxWidth = 200;
 /** Padding on each side of gate. */
 export const gatePadding = 10;
 /** Padding on each side of gate label. */

@@ -10,8 +10,8 @@ use num_complex::Complex;
 use qsc_codegen::remapper::{HardwareId, Remapper};
 use qsc_data_structures::index_map::IndexMap;
 use qsc_eval::{
-    backend::{Annotator, Backend},
-    state::get_latex,
+    backend::{Annotate, Backend},
+    state::get_latex_without_psi,
     val::Value,
 };
 use std::{fmt::Write, mem::take, rc::Rc};
@@ -21,7 +21,6 @@ pub struct Builder {
     circuit: Circuit,
     config: Config,
     remapper: Remapper,
-    has_annotation: bool,
 }
 
 impl Backend for Builder {
@@ -187,7 +186,13 @@ impl Backend for Builder {
     }
 
     fn capture_quantum_state(&mut self) -> (Vec<(BigUint, Complex<f64>)>, usize) {
-        self.has_annotation = true;
+        (Vec::new(), 0)
+    }
+
+    fn capture_quantum_state_for_qubits(
+        &mut self,
+        _qs: &[usize],
+    ) -> (Vec<(BigUint, Complex<f64>)>, usize) {
         (Vec::new(), 0)
     }
 
@@ -229,7 +234,6 @@ impl Builder {
             circuit: Circuit::default(),
             config,
             remapper: Remapper::default(),
-            has_annotation: false,
         }
     }
 
@@ -286,7 +290,7 @@ impl Builder {
             }
         }
 
-        let num_qubits = self.remapper.num_qubits();
+        let num_qubits = self.remapper.num_hardware_qubits();
         // if self.has_annotation {
         //     num_qubits += 1;
         // }
@@ -388,19 +392,9 @@ impl Builder {
     }
 }
 
-impl Annotator for Builder {
+impl Annotate for Builder {
     fn annotate_quantum_state(&mut self, state: &[(BigUint, Complex<f64>)], count: usize) {
-        let mut result = get_latex(state, count);
-
-        if result.is_empty() {
-            result = String::new();
-            for (idx, val) in state {
-                let mut idx_str = format!("{:0width$b}", idx, width = count);
-                idx_str.insert(0, '|');
-                idx_str.push('⟩');
-                result.push_str(&format!("{}: {}\n", idx_str, val));
-            }
-        }
+        let result = format_state(state, count);
 
         self.circuit.operations.push(Operation {
             gate: "annotation".into(),
@@ -408,16 +402,47 @@ impl Annotator for Builder {
             is_controlled: false,
             is_adjoint: false,
             is_measurement: false,
-            // controls: (0..self.remapper.num_qubits())
-            //     .map(Register::quantum)
-            //     .collect(),
             controls: vec![],
-            targets: (0..self.remapper.num_qubits())
+            targets: (0..self.remapper.num_allocated_qubits())
                 .map(Register::quantum)
                 .collect(),
             children: vec![],
         });
     }
+
+    fn annotate_quantum_state_for_qubits(
+        &mut self,
+        state: &[(BigUint, Complex<f64>)],
+        qubits: &[usize],
+    ) {
+        let result = format_state(state, qubits.len());
+
+        self.circuit.operations.push(Operation {
+            gate: "annotation".into(),
+            display_args: Some(result),
+            is_controlled: false,
+            is_adjoint: false,
+            is_measurement: false,
+            controls: vec![],
+            targets: qubits.iter().map(|i| Register::quantum(*i)).collect(),
+            children: vec![],
+        });
+    }
+}
+
+fn format_state(state: &[(BigUint, Complex<f64>)], count: usize) -> String {
+    let mut result = get_latex_without_psi(state, count);
+
+    if result.is_empty() {
+        result = String::new();
+        for (idx, val) in state {
+            let mut idx_str = format!("{:0width$b}", idx, width = count);
+            idx_str.insert(0, '|');
+            idx_str.push('⟩');
+            result.push_str(&format!("{}: {}\n", idx_str, val));
+        }
+    }
+    result
 }
 
 #[allow(clippy::unicode_not_nfc)]

@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import { labelFontSize, svgNS } from "../constants";
+import { labelFontSize, svgNS } from '../constants';
 
 // Helper functions for basic SVG components
 
@@ -13,15 +13,10 @@ import { labelFontSize, svgNS } from "../constants";
  *
  * @returns SVG element.
  */
-export const createSvgElement = (
-  type: string,
-  attributes: { [attr: string]: string } = {},
-): SVGElement => {
-  const el: SVGElement = document.createElementNS(svgNS, type);
-  Object.entries(attributes).forEach(([attrName, attrVal]) =>
-    el.setAttribute(attrName, attrVal),
-  );
-  return el;
+export const createSvgElement = (type: string, attributes: { [attr: string]: string } = {}): SVGElement => {
+    const el: SVGElement = document.createElementNS(svgNS, type);
+    Object.entries(attributes).forEach(([attrName, attrVal]) => el.setAttribute(attrName, attrVal));
+    return el;
 };
 
 /**
@@ -32,13 +27,10 @@ export const createSvgElement = (
  *
  * @returns SVG element for grouped elements.
  */
-export const group = (
-  svgElems: SVGElement[],
-  attributes: { [attr: string]: string } = {},
-): SVGElement => {
-  const el: SVGElement = createSvgElement("g", attributes);
-  svgElems.forEach((child: SVGElement) => el.appendChild(child));
-  return el;
+export const group = (svgElems: SVGElement[], attributes: { [attr: string]: string } = {}): SVGElement => {
+    const el: SVGElement = createSvgElement('g', attributes);
+    svgElems.forEach((child: SVGElement) => el.appendChild(child));
+    return el;
 };
 
 /**
@@ -52,21 +44,15 @@ export const group = (
  *
  * @returns SVG element for line.
  */
-export const line = (
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  className?: string,
-): SVGElement => {
-  const attrs: { [attr: string]: string } = {
-    x1: x1.toString(),
-    x2: x2.toString(),
-    y1: y1.toString(),
-    y2: y2.toString(),
-  };
-  if (className != null) attrs["class"] = className;
-  return createSvgElement("line", attrs);
+export const line = (x1: number, y1: number, x2: number, y2: number, className?: string): SVGElement => {
+    const attrs: { [attr: string]: string } = {
+        x1: x1.toString(),
+        x2: x2.toString(),
+        y1: y1.toString(),
+        y2: y2.toString(),
+    };
+    if (className != null) attrs['class'] = className;
+    return createSvgElement('line', attrs);
 };
 
 /**
@@ -78,19 +64,14 @@ export const line = (
  *
  * @returns SVG element for circle.
  */
-export const circle = (
-  x: number,
-  y: number,
-  radius: number,
-  className?: string,
-): SVGElement => {
-  const attrs: { [attr: string]: string } = {
-    cx: x.toString(),
-    cy: y.toString(),
-    r: radius.toString(),
-  };
-  if (className != null) attrs["class"] = className;
-  return createSvgElement("circle", attrs);
+export const circle = (x: number, y: number, radius: number, className?: string): SVGElement => {
+    const attrs: { [attr: string]: string } = {
+        cx: x.toString(),
+        cy: y.toString(),
+        r: radius.toString(),
+    };
+    if (className != null) attrs['class'] = className;
+    return createSvgElement('circle', attrs);
 };
 
 /**
@@ -102,8 +83,7 @@ export const circle = (
  *
  * @returns SVG element for control dot.
  */
-export const controlDot = (x: number, y: number, radius = 5): SVGElement =>
-  circle(x, y, radius, "control-dot");
+export const controlDot = (x: number, y: number, radius = 5): SVGElement => circle(x, y, radius, 'control-dot');
 
 /**
  * Generate the SVG representation of a unitary box that represents an arbitrary unitary operation.
@@ -116,20 +96,23 @@ export const controlDot = (x: number, y: number, radius = 5): SVGElement =>
  *
  * @returns SVG element for unitary box.
  */
-export const box = (
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  className = "gate-unitary",
-): SVGElement =>
-  createSvgElement("rect", {
-    class: className,
-    x: x.toString(),
-    y: y.toString(),
-    width: width.toString(),
-    height: height.toString(),
-  });
+export const box = (x: number, y: number, width: number, height: number, className = 'gate-unitary'): SVGElement =>
+    createSvgElement('rect', {
+        class: className,
+        x: x.toString(),
+        y: y.toString(),
+        width: width.toString(),
+        height: height.toString(),
+    });
+
+export const foreignObject = (x: number, y: number, width: number, height: number, className: string): SVGElement =>
+    createSvgElement('foreignObject', {
+        class: className,
+        x: x.toString(),
+        y: y.toString(),
+        width: width.toString(),
+        height: height.toString(),
+    });
 
 /**
  * Generate the SVG text element from a given text string.
@@ -142,18 +125,21 @@ export const box = (
  * @returns SVG element for text.
  */
 export const text = (
-  text: string,
-  x: number,
-  y: number,
-  fs: number = labelFontSize,
+    text: string,
+    x: number,
+    y: number,
+    fs: number = labelFontSize,
+    className: string | undefined = undefined,
 ): SVGElement => {
-  const el: SVGElement = createSvgElement("text", {
-    "font-size": fs.toString(),
-    x: x.toString(),
-    y: y.toString(),
-  });
-  el.textContent = text;
-  return el;
+    const attr: any = {
+        'font-size': fs.toString(),
+        x: x.toString(),
+        y: y.toString(),
+    };
+    if (className != null) attr.class = className;
+    const el: SVGElement = createSvgElement('text', attr);
+    el.textContent = text;
+    return el;
 };
 
 /**
@@ -167,10 +153,10 @@ export const text = (
  * @returns SVG element for arc.
  */
 export const arc = (x: number, y: number, rx: number, ry: number): SVGElement =>
-  createSvgElement("path", {
-    class: "arc-measure",
-    d: `M ${x + 2 * rx} ${y} A ${rx} ${ry} 0 0 0 ${x} ${y}`,
-  });
+    createSvgElement('path', {
+        class: 'arc-measure',
+        d: `M ${x + 2 * rx} ${y} A ${rx} ${ry} 0 0 0 ${x} ${y}`,
+    });
 
 /**
  * Generate a dashed SVG line.
@@ -183,16 +169,10 @@ export const arc = (x: number, y: number, rx: number, ry: number): SVGElement =>
  *
  * @returns SVG element for dashed line.
  */
-export const dashedLine = (
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  className?: string,
-): SVGElement => {
-  const el: SVGElement = line(x1, y1, x2, y2, className);
-  el.setAttribute("stroke-dasharray", "8, 8");
-  return el;
+export const dashedLine = (x1: number, y1: number, x2: number, y2: number, className?: string): SVGElement => {
+    const el: SVGElement = line(x1, y1, x2, y2, className);
+    el.setAttribute('stroke-dasharray', '8, 8');
+    return el;
 };
 
 /**
@@ -206,15 +186,9 @@ export const dashedLine = (
  *
  * @returns SVG element for dashed box.
  */
-export const dashedBox = (
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  className?: string,
-): SVGElement => {
-  const el: SVGElement = box(x, y, width, height, className);
-  el.setAttribute("fill-opacity", "0");
-  el.setAttribute("stroke-dasharray", "8, 8");
-  return el;
+export const dashedBox = (x: number, y: number, width: number, height: number, className?: string): SVGElement => {
+    const el: SVGElement = box(x, y, width, height, className);
+    el.setAttribute('fill-opacity', '0');
+    el.setAttribute('stroke-dasharray', '8, 8');
+    return el;
 };

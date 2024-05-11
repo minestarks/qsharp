@@ -3,7 +3,14 @@
 
 import { Qubit } from '../circuit';
 import { RegisterType, RegisterMap, RegisterMetadata } from '../register';
-import { leftPadding, startY, registerHeight, classicalRegHeight, annotationBoxHeight } from '../constants';
+import {
+    leftPadding,
+    startY,
+    registerHeight,
+    classicalRegHeight,
+    annotationBoxHeight,
+    annotationBoxAvailableRows,
+} from '../constants';
 import { group, text } from './formatUtils';
 
 /**
@@ -58,7 +65,7 @@ const formatInputs = (
 
     if (annotationRow) {
         info.annotationY = info.svgHeight;
-        info.svgHeight += annotationBoxHeight;
+        info.svgHeight += annotationBoxHeight * annotationBoxAvailableRows;
     }
 
     return info;

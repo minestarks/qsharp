@@ -67,7 +67,12 @@ impl Remapper {
     }
 
     #[must_use]
-    pub fn num_qubits(&self) -> usize {
+    pub fn num_allocated_qubits(&self) -> usize {
+        self.next_qubit_id
+    }
+
+    #[must_use]
+    pub fn num_hardware_qubits(&self) -> usize {
         self.next_qubit_hardware_id.0
     }
 

@@ -13,6 +13,8 @@ import {
     classicalRegHeight,
     nestedGroupPadding,
     annotationBoxHeight,
+    annotationBoxWidth,
+    annotationLineWidth,
 } from '../constants';
 import {
     createSvgElement,
@@ -25,6 +27,7 @@ import {
     arc,
     dashedLine,
     dashedBox,
+    foreignObject,
 } from './formatUtils';
 
 /**
@@ -69,7 +72,7 @@ const _formatGate = (metadata: Metadata, nestedDepth = 0, annotationY?: number):
         case GateType.ClassicalControlled:
             return _classicalControlled(metadata);
         case GateType.Annotation:
-            return _createGate([_annotation(label, x, [targetsY as number[]], annotationY!)], metadata, nestedDepth);
+            return _createGate([_annotation(label, x, targetsY as number[][], annotationY!)], metadata, nestedDepth);
         default:
             throw new Error(`ERROR: unknown gate (${label}) of type ${type}.`);
     }
@@ -188,7 +191,7 @@ const _measure = (x: number, y: number): SVGElement => {
     // Draw measurement box
     const mBox: SVGElement = box(x, y - height / 2, width, height, 'gate-measure');
     const mArc: SVGElement = arc(x + 5, y + 2, width / 2 - 5, height / 2 - 8);
-    const meter: SVGElement = line(x + width / 2, y + 8, x + width - 8, y - height / 2 + 8);
+    const meter: SVGElement = line(x + width / 2, y + 8, x + width - 8, y - height / 2 + 8, 'line-measure');
     return group([mBox, mArc, meter]);
 };
 
@@ -235,31 +238,53 @@ const _unitary = (
     return group(unitaryBoxes);
 };
 
+let lastAnnotationBoxXEnd = 0;
+let lastAnnotationBoxRow = 0;
+
 const _annotation = (label: string, x: number, y: number[][], boxY: number): SVGElement => {
-    if (y.length === 0) throw new Error(`Failed to render unitary gate (${label}): has no y-values`);
+    console.log(`_annotation: ${label}, ${x}, ${JSON.stringify(y)}, ${boxY}`);
+    if (y.length === 0) throw new Error(`Rendering annotation for 0-qubit states not supported rn`);
+    if (y[0].length === 0) throw new Error(`Rendering annotation for 0-qubit states not supported rn`);
 
-    // Render each group as a separate unitary boxes
-    const unitaryBoxes: SVGElement[] = y.map((g: number[]) => {
-        //const controlledDotsSvg: SVGElement[] = controlsY.map((y) => controlDot(x, y));
-
-        const maxY: number = g[g.length - 1];
-        const minY: number = g[0];
-        // const height: number = maxY - minY + gateHeight;
-
-        const topLine: SVGElement = line(x, minY, x, maxY);
-        const bottomLine: SVGElement = dashedLine(x, maxY, x, boxY);
-        return group([topLine, bottomLine, _annotationBox(label, x, boxY, 200, annotationBoxHeight)]);
+    // Render a box on each target qubit
+    const boxes: SVGElement[] = y.map((group: number[]) => {
+        const maxY: number = group[group.length - 1];
+        const minY: number = group[0];
+        const height: number = maxY - minY + 20; // 20 is padding height
+        return box(x - annotationLineWidth / 2, minY - 10, annotationLineWidth, height, 'annotation-target');
     });
 
-    return group(unitaryBoxes);
+    // const lastBox = y[y.length - 1];
+    const firstBox = y[0];
+    // const maxY: number = lastBox[lastBox.length - 1];
+    const minY: number = firstBox[0];
+
+    let row = 0;
+    if (x < lastAnnotationBoxXEnd) {
+        // bump a row
+        if (lastAnnotationBoxRow === 0) {
+            row = 1;
+        } else if (lastAnnotationBoxRow === 1) {
+            row = 0;
+        }
+        lastAnnotationBoxRow = row;
+    }
+
+    boxY += row * annotationBoxHeight;
+
+    lastAnnotationBoxXEnd = x + annotationBoxWidth;
+
+    const dashLine: SVGElement = dashedLine(x, minY, x, boxY);
+
+    return group([...boxes, dashLine, _annotationBox(label, x, boxY, annotationBoxWidth, annotationBoxHeight)]);
 };
 
 const _annotationBox = (label: string, x: number, y: number, width: number, height: number): SVGElement => {
     console.log(`_annotationBox: ${label}, ${x}, ${y}, ${width}, ${height}`);
     // y -= gateHeight / 2;
-    const uBox: SVGElement = box(x - width / 2, y, width, height);
+    const uBox: SVGElement = foreignObject(x - width / 2, y, width, height, 'annotation-box');
     const labelY = y + height / 2;
-    const labelText: SVGElement = text(label, x, labelY);
+    const labelText: SVGElement = text(label, x, labelY, 10, 'annotation-text');
     const elems = [uBox, labelText];
     return group(elems);
 };

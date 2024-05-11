@@ -119,7 +119,7 @@ function ZoomableCircuit(props: {
     styleElements?.forEach((tag) => tag.remove());
 
     // Render the markdown in the annotations
-    const texts = container.querySelectorAll(".gate g g text");
+    const texts = container.querySelectorAll(".annotation-text");
     texts.forEach((text) => {
       if (text.innerHTML === "annotation") {
         text.innerHTML = "";
@@ -127,40 +127,17 @@ function ZoomableCircuit(props: {
       }
       console.log(text.innerHTML);
       const rendered = mdRender(text.innerHTML);
-      if (rendered === text.innerHTML) {
-        return;
-      }
 
-      const greatGrandParent =
-        text.parentElement!.parentElement!.parentElement!;
-      const rect = greatGrandParent.querySelectorAll(".gate-unitary")[0];
+      const foreignObject =
+        text.parentElement!.querySelectorAll(".annotation-box")[0];
 
-      if (rect) {
-        rect.setAttribute("style", `visibility: hidden`);
-        const rectX = parseFloat(rect.attributes.getNamedItem("x")!.value);
-        const rectY = parseFloat(rect.attributes.getNamedItem("y")!.value);
-        const rectWidth = parseFloat(
-          rect.attributes.getNamedItem("width")!.value,
-        );
-        const rectHeight = parseFloat(
-          rect.attributes.getNamedItem("height")!.value,
-        );
-
-        const width = rectWidth;
-        const height = rectHeight;
-        const x = rectX;
-        const y = rectY;
-
+      if (foreignObject) {
         text.innerHTML = "";
-        text.parentElement!.innerHTML += `
-      <foreignObject x="${x}" y="${y}" width="${width}" height="${height}">
-        <div xmlns="http://www.w3.org/1999/xhtml">
+        foreignObject.innerHTML += `
+        <div xmlns="http://www.w3.org/1999/xhtml" style="text-align: center">
           ${rendered}
         </div>
-      </foreignObject>
       `;
-
-        console.log("inserted foreign object");
       }
 
       console.log(rendered);
