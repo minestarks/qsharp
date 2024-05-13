@@ -14,6 +14,7 @@ mod circuit_tests;
 
 use std::rc::Rc;
 
+use log::info;
 pub use qsc_eval::{
     debug::Frame,
     output::{self, GenericReceiver},
@@ -31,6 +32,7 @@ use crate::{
     error::{self, WithStack},
     incremental::Compiler,
     location::Location,
+    qubit_namer::{name_qubits, QubitTable},
 };
 use debug::format_call_stack;
 use miette::Diagnostic;
@@ -43,6 +45,7 @@ use qsc_circuit::{
 use qsc_codegen::{qir::fir_to_qir, qir_base::BaseProfSim};
 use qsc_data_structures::{
     functors::FunctorApp,
+    index_map::IndexMap,
     language_features::LanguageFeatures,
     line_column::{Encoding, Range},
     span::Span,
@@ -51,7 +54,7 @@ use qsc_data_structures::{
 use qsc_eval::{
     backend::{Backend, Chain as BackendChain, SparseSim},
     output::Receiver,
-    val, Env, State, VariableInfo,
+    val, Env, QubitSpans, State, VariableInfo,
 };
 use qsc_fir::fir::{self, ExecGraphNode, Global, PackageStoreLookup};
 use qsc_fir::{
@@ -473,6 +476,7 @@ impl Interpreter {
     /// circuit is returned (a.k.a. trace mode). Otherwise, the circuit is generated without
     /// simulation. In this case circuit generation may fail if the program contains dynamic
     /// behavior (quantum operations that are dependent on measurement results).
+    #[allow(clippy::format_collect)]
     pub fn circuit(
         &mut self,
         entry: CircuitEntryPoint,
@@ -492,7 +496,15 @@ impl Interpreter {
         let circuit = if simulate {
             let mut sim = sim_circuit_backend();
 
-            self.run_with_sim_no_output(entry_expr, &mut sim)?;
+            let (_, qubits) = self.run_with_sim_no_output(entry_expr, &mut sim)?;
+            let table = self.assign_qubit_names(&qubits);
+            info!(
+                "qubit table: {}",
+                table
+                    .iter()
+                    .map(|(k, v)| format!("{k} {v}"))
+                    .collect::<String>()
+            );
 
             sim.chained.finish()
         } else {
@@ -500,7 +512,15 @@ impl Interpreter {
                 base_profile: self.capabilities.is_empty(),
             });
 
-            self.run_with_sim_no_output(entry_expr, &mut sim)?;
+            let (_, qubits) = self.run_with_sim_no_output(entry_expr, &mut sim)?;
+            let table = self.assign_qubit_names(&qubits);
+            info!(
+                "qubit table: {}",
+                table
+                    .iter()
+                    .map(|(k, v)| format!("{k} {v}"))
+                    .collect::<String>()
+            );
 
             sim.finish()
         };
@@ -538,7 +558,7 @@ impl Interpreter {
         &mut self,
         entry_expr: Option<String>,
         sim: &mut impl Backend<ResultType = impl Into<val::Result>>,
-    ) -> InterpretResult {
+    ) -> std::result::Result<(Value, QubitSpans), Vec<Error>> {
         let mut sink = std::io::sink();
         let mut out = GenericReceiver::new(&mut sink);
 
@@ -554,7 +574,7 @@ impl Interpreter {
             sim.set_seed(self.quantum_seed);
         }
 
-        eval(
+        eval_and_get_qubit_table(
             package_id,
             self.classical_seed,
             graph,
@@ -564,6 +584,48 @@ impl Interpreter {
             sim,
             &mut out,
         )
+    }
+
+    fn assign_qubit_names(
+        &self,
+        qubits: &QubitSpans,
+    ) -> IndexMap<qsc_hir::hir::PackageId, QubitTable> {
+        let mut tables = IndexMap::default();
+        for (q, span) in qubits.iter() {
+            let package_id = span.package;
+            let unit = self
+                .compiler
+                .package_store()
+                .get(package_id)
+                .expect("package should exist in the package store");
+            let source = unit
+                .sources
+                .find_by_offset(span.span.lo)
+                .expect("source should be found for offset");
+            let lo = span.span.lo as usize - source.offset as usize;
+            let hi: usize = span.span.hi as usize - source.offset as usize;
+            let s: String = source.contents[lo..hi].into();
+
+            let qubit_table = if let Some(table) = tables.get_mut(package_id) {
+                table
+            } else {
+                let table = QubitTable::default();
+                tables.insert(package_id, table);
+                tables.get_mut(package_id).expect("should exist")
+            };
+
+            qubit_table.spans.insert(q, span.span);
+            qubit_table.arg_sources.insert(q, s);
+        }
+        for (package_id, table) in tables.iter_mut() {
+            let unit = self
+                .compiler
+                .package_store()
+                .get(package_id)
+                .expect("package should exist in the package store");
+            name_qubits(table, &unit.ast.package);
+        }
+        tables
     }
 
     fn compile_entry_expr(
@@ -869,6 +931,29 @@ fn eval(
     receiver: &mut impl Receiver,
 ) -> InterpretResult {
     qsc_eval::eval(
+        package,
+        classical_seed,
+        exec_graph,
+        fir_store,
+        env,
+        sim,
+        receiver,
+    )
+    .map_err(|(error, call_stack)| eval_error(package_store, fir_store, call_stack, error))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn eval_and_get_qubit_table(
+    package: PackageId,
+    classical_seed: Option<u64>,
+    exec_graph: Rc<[ExecGraphNode]>,
+    package_store: &PackageStore,
+    fir_store: &fir::PackageStore,
+    env: &mut Env,
+    sim: &mut impl Backend<ResultType = impl Into<val::Result>>,
+    receiver: &mut impl Receiver,
+) -> std::result::Result<(Value, QubitSpans), Vec<Error>> {
+    qsc_eval::eval_and_get_qubit_table(
         package,
         classical_seed,
         exec_graph,

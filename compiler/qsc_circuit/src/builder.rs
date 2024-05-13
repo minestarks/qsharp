@@ -11,7 +11,7 @@ use qsc_codegen::remapper::{HardwareId, Remapper};
 use qsc_data_structures::index_map::IndexMap;
 use qsc_eval::{
     backend::{Annotate, Backend},
-    state::get_latex_without_psi,
+    state::{fmt_complex, format_state_id, get_latex_without_psi},
     val::Value,
 };
 use std::{fmt::Write, mem::take, rc::Rc};
@@ -435,11 +435,14 @@ fn format_state(state: &[(BigUint, Complex<f64>)], count: usize) -> String {
 
     if result.is_empty() {
         result = String::new();
-        for (idx, val) in state {
-            let mut idx_str = format!("{:0width$b}", idx, width = count);
-            idx_str.insert(0, '|');
-            idx_str.push('⟩');
-            result.push_str(&format!("{}: {}\n", idx_str, val));
+        for (id, val) in state {
+            writeln!(
+                result,
+                "{}: {}",
+                format_state_id(id, count),
+                fmt_complex(val),
+            )
+            .expect("writing to string should succeed");
         }
     }
     result
