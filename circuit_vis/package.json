@@ -32,7 +32,6 @@
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^26.0.4",
-    "canvas": "^2.6.1",
     "jest": "^26.6.3",
     "terser-webpack-plugin": "^4.1.0",
     "ts-jest": "^26.1.2",

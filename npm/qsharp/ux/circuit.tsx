@@ -129,6 +129,13 @@ function ZoomableCircuit(props: {
     }
   }
 
+  function currentSvg(): [HTMLDivElement | null, SVGElement | null] {
+    return [
+      circuitDiv.current,
+      circuitDiv.current?.querySelector(".qviz") ?? null,
+    ];
+  }
+
   function renderCircuit(
     circuit: qviz.Circuit,
     mdRender: (input: string) => string,
@@ -180,6 +187,7 @@ function ZoomableCircuit(props: {
 
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     const zoom = Math.min(Math.ceil((containerWidth / width) * 100), 100);
+    console.log("zoom level calculated at " + zoom);
     return zoom;
   }
 
