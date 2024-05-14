@@ -49,7 +49,7 @@ const isWin = process.platform === "win32";
 const npmCmd = isWin ? "npm.cmd" : "npm";
 
 function buildRust() {
-  console.log("Compiling the .wasm module with wasm-pack");
+  console.log("Compiling the .wasm module with wasm-pack...");
 
   // This takes ~3-4 seconds on rebuild after some Rust changes. (Non-dev builds take ~15-20 seconds)
   // Build only web and not node targets to half time.
@@ -72,6 +72,7 @@ function buildRust() {
   // They already watch the .d.ts file from the npm package, so will rebuild if it changes.
   copyWasmToVsCode();
   copyWasmToPlayground();
+  console.log("Wasm files copied to VS Code and playground");
 }
 
 // Minor delay to ensure all changes flush to disk before starting a build if
