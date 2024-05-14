@@ -30,12 +30,12 @@ const formatInputs = (
     const registers: RegisterMap = {};
 
     let currY: number = startY;
-    qubits.forEach(({ id, numChildren }) => {
+    qubits.forEach(({ id, name, numChildren }) => {
         // Add qubit wire to list of qubit wires
         qubitWires.push(_qubitInput(currY));
 
         // Create qubit register
-        registers[id] = { type: RegisterType.Qubit, y: currY };
+        registers[id] = { type: RegisterType.Qubit, y: currY, name };
 
         // If there are no attached classical registers, increment y by fixed register height
         if (numChildren == null || numChildren === 0) {

@@ -20,18 +20,36 @@ pub struct Remapper {
     next_qubit_hardware_id: HardwareId,
     qubit_map: IndexMap<usize, HardwareId>,
     measurements: Vec<(HardwareId, usize)>,
+    // All the qubits that have ever been mapped to this hardware qubit
+    // Key is HardwareId!
+    // I don't actually think the same hardware qubit can be mapped to more than one qubit
+    // in this layer . The opposite may be true though.
+    ever_mapped: IndexMap<usize, Vec<usize>>,
 }
 
 impl Remapper {
     pub fn map(&mut self, qubit: usize) -> HardwareId {
-        if let Some(mapped) = self.qubit_map.get(qubit) {
+        let m = if let Some(mapped) = self.qubit_map.get(qubit) {
             *mapped
         } else {
             let mapped = self.next_qubit_hardware_id;
             self.next_qubit_hardware_id.0 += 1;
             self.qubit_map.insert(qubit, mapped);
             mapped
-        }
+        };
+        let ever = if let Some(ever) = self.ever_mapped.get_mut(m.0) {
+            ever
+        } else {
+            self.ever_mapped.insert(m.0, Vec::new());
+            self.ever_mapped.get_mut(m.0).expect("yada yada")
+        };
+        ever.push(qubit);
+        m
+    }
+
+    #[must_use]
+    pub fn get_ever_mapped(&self, id: HardwareId) -> Vec<usize> {
+        self.ever_mapped.get(id.0).expect("yada yada").clone()
     }
 
     pub fn m(&mut self, q: usize) -> usize {

@@ -24,6 +24,7 @@ pub(crate) fn call(
     name: &str,
     name_span: PackageSpan,
     arg: Value,
+    caller_span: Option<PackageSpan>,
     arg_span: PackageSpan,
     sim: &mut dyn Backend<ResultType = impl Into<val::Result>>,
     rng: &mut StdRng,
@@ -109,7 +110,8 @@ pub(crate) fn call(
         "Truncate" => Ok(Value::Int(arg.unwrap_double() as i64)),
         "__quantum__rt__qubit_allocate" => {
             let id = sim.qubit_allocate();
-            qubit_spans.insert(id, arg_span);
+            // obviously this is wrong
+            qubit_spans.insert(id, (caller_span, arg_span));
             Ok(Value::Qubit(Qubit(id)))
         }
         "__quantum__rt__qubit_release" => {

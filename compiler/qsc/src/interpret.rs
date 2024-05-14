@@ -14,7 +14,6 @@ mod circuit_tests;
 
 use std::rc::Rc;
 
-use log::info;
 pub use qsc_eval::{
     debug::Frame,
     output::{self, GenericReceiver},
@@ -40,7 +39,7 @@ use num_bigint::BigUint;
 use num_complex::Complex;
 use qsc_circuit::{
     operations::entry_expr_for_qubit_operation, Builder as CircuitBuilder, Circuit,
-    Config as CircuitConfig,
+    Config as CircuitConfig, QubitNames,
 };
 use qsc_codegen::{qir::fir_to_qir, qir_base::BaseProfSim};
 use qsc_data_structures::{
@@ -498,15 +497,8 @@ impl Interpreter {
 
             let (_, qubits) = self.run_with_sim_no_output(entry_expr, &mut sim)?;
             let table = self.assign_qubit_names(&qubits);
-            info!(
-                "qubit table: {}",
-                table
-                    .iter()
-                    .map(|(k, v)| format!("{k} {v}"))
-                    .collect::<String>()
-            );
 
-            sim.chained.finish()
+            sim.chained.finish(table)
         } else {
             let mut sim = CircuitBuilder::new(CircuitConfig {
                 base_profile: self.capabilities.is_empty(),
@@ -514,15 +506,8 @@ impl Interpreter {
 
             let (_, qubits) = self.run_with_sim_no_output(entry_expr, &mut sim)?;
             let table = self.assign_qubit_names(&qubits);
-            info!(
-                "qubit table: {}",
-                table
-                    .iter()
-                    .map(|(k, v)| format!("{k} {v}"))
-                    .collect::<String>()
-            );
 
-            sim.finish()
+            sim.finish(table)
         };
 
         Ok(circuit)
@@ -574,7 +559,7 @@ impl Interpreter {
             sim.set_seed(self.quantum_seed);
         }
 
-        eval_and_get_qubit_table(
+        let r = eval_and_get_qubit_table(
             package_id,
             self.classical_seed,
             graph,
@@ -583,15 +568,25 @@ impl Interpreter {
             &mut Env::default(),
             sim,
             &mut out,
-        )
+        )?;
+
+        Ok(r)
     }
 
-    fn assign_qubit_names(
-        &self,
-        qubits: &QubitSpans,
-    ) -> IndexMap<qsc_hir::hir::PackageId, QubitTable> {
+    fn assign_qubit_names(&self, qubits: &QubitSpans) -> QubitNames {
         let mut tables = IndexMap::default();
-        for (q, span) in qubits.iter() {
+        let flat_map = qubits
+            .iter()
+            .flat_map(|(q, (maybe_span_1, span_2))| {
+                let q1 = q;
+                maybe_span_1
+                    .iter()
+                    .map(move |span_1| (q1, *span_1))
+                    .chain(std::iter::once((q, *span_2)))
+            })
+            .collect::<Vec<_>>();
+
+        for (q, span) in flat_map.clone() {
             let package_id = span.package;
             let unit = self
                 .compiler
@@ -625,7 +620,19 @@ impl Interpreter {
                 .expect("package should exist in the package store");
             name_qubits(table, &unit.ast.package);
         }
-        tables
+
+        // now back to qubits
+        let mut qubit_to_name = IndexMap::new();
+        for (qubit_id, span) in flat_map {
+            let package_id = span.package;
+            let table = tables.get(package_id).expect("table should exist");
+            let name = table.names.get(qubit_id);
+            if let Some(name) = name {
+                qubit_to_name.insert(qubit_id, name.clone());
+            }
+        }
+
+        qubit_to_name
     }
 
     fn compile_entry_expr(

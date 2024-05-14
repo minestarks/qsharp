@@ -445,7 +445,7 @@ struct Scope {
     frame_id: usize,
 }
 
-pub type QubitSpans = IndexMap<usize, PackageSpan>;
+pub type QubitSpans = IndexMap<usize, (Option<PackageSpan>, PackageSpan)>;
 
 pub struct State {
     exec_graph_stack: Vec<Rc<[ExecGraphNode]>>,
@@ -980,6 +980,10 @@ impl State {
         let spec = spec_from_functor_app(functor);
         match &callee.implementation {
             CallableImpl::Intrinsic => {
+                let callerr_span = self.call_stack.frames.last().map(|f| PackageSpan {
+                    package: map_fir_package_to_hir(f.caller),
+                    span: f.span,
+                });
                 self.push_frame(Vec::new().into(), callee_id, functor);
 
                 let name = &callee.name.name;
@@ -987,6 +991,7 @@ impl State {
                     name,
                     callee_span,
                     arg,
+                    callerr_span,
                     arg_span,
                     sim,
                     &mut self.rng.borrow_mut(),
