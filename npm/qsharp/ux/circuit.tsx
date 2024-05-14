@@ -67,18 +67,35 @@ function ZoomableCircuit(props: {
       updateWidth();
       // Disable "rendering" text
       setRendering(false);
-    } else {
-      // Initial drawing done, attach window resize handler
-      window.addEventListener("resize", onResize);
-      return () => {
-        window.removeEventListener("resize", onResize);
-      };
     }
   }, [rendering, zoomOnResize]);
 
   useEffect(() => {
     updateWidth();
   }, [zoomLevel]);
+
+  useEffect(() => {
+    if (!rendering) {
+      const container = circuitDiv.current;
+      if (!container) {
+        return;
+      }
+
+      // Rendering is done. Attach zoom handlers.
+
+      const cleanups: (() => void)[] = [];
+
+      // (Re)attach the window resize handler
+      window.addEventListener("resize", onResize);
+      cleanups.push(() => window.removeEventListener("resize", onResize));
+
+      // (Re)attach the wheel handler, capturing the current zoom level
+      container.addEventListener("wheel", onWheel);
+      cleanups.push(() => window.removeEventListener("wheel", onWheel));
+
+      return () => cleanups.forEach((d) => d());
+    }
+  }, [zoomLevel, rendering]);
 
   return (
     <div>
@@ -114,6 +131,13 @@ function ZoomableCircuit(props: {
     }
   }
 
+  function onWheel(event: WheelEvent) {
+    const [container, svg] = [circuitDiv.current, currentSvg()];
+    if (event.ctrlKey && container && svg) {
+      setZoomLevel(Math.max(1, zoomLevel - event.deltaY * 0.1));
+    }
+  }
+
   /**
    * Update the width of the SVG element based on the current zoom level.
    */
@@ -129,7 +153,7 @@ function ZoomableCircuit(props: {
       // This value takes precedence over the true width in the width attribute.
       svg.setAttribute(
         "style",
-        `max-width: ${width}; width: ${(parseInt(width) * (zoomLevel || 100)) / 100}; height: auto`,
+        `width: ${(parseInt(width) * (zoomLevel || 100)) / 100}; height: auto`,
       );
     }
   }
@@ -231,7 +255,6 @@ function ZoomControl(props: { zoom: number; onInput: (zoom: number) => void }) {
         id="qs-circuit-zoom"
         type="number"
         min="10"
-        max="100"
         step="10"
         value={props.zoom}
         onInput={(e) =>
