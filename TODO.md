@@ -1,0 +1,6 @@
+- [ ] Update sample notebooks with newer features (connection string, widgets, etc)
+- [ ] Make the jupyterlab extension more discoverable somehow
+- [ ] Language service should be aware of project in `qsharp.init(project_root=foo)`
+- [ ] Allow circuit for parameterless operation
+- [ ] Circuits for adj and ctl specializations of an operation
+- [ ] fix ascii for gates that span multiple rows (e.g. rzz)
