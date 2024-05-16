@@ -432,10 +432,12 @@ impl Annotate for Builder {
 }
 
 fn format_state(state: &[(BigUint, Complex<f64>)], count: usize) -> String {
-    let mut result = get_latex_without_psi(state, count);
+    let result = get_latex_without_psi(state, count);
 
-    if result.is_empty() {
-        result = String::new();
+    if let Some(result) = result {
+        result
+    } else {
+        let mut result = String::new();
         for (id, val) in state {
             writeln!(
                 result,
@@ -445,8 +447,8 @@ fn format_state(state: &[(BigUint, Complex<f64>)], count: usize) -> String {
             )
             .expect("writing to string should succeed");
         }
+        result
     }
-    result
 }
 
 #[allow(clippy::unicode_not_nfc)]
