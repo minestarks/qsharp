@@ -1,0 +1,2 @@
+- [ ] Update sample notebooks with newer features (connection string, widgets, etc)
+- [ ] Make the jupyterlab extension more discoverable somehow
