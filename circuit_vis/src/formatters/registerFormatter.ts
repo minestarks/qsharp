@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import { RegisterMap } from '../register';
-import { regLineStart } from '../constants';
-import { Metadata, GateType } from '../metadata';
-import { group, line, text } from './formatUtils';
+import { RegisterMap } from "../register";
+import { regLineStart } from "../constants";
+import { Metadata, GateType } from "../metadata";
+import { group, line, text } from "./formatUtils";
 
 /**
  * Generate the SVG representation of the qubit register wires in `registers` and the classical wires
@@ -16,21 +16,27 @@ import { group, line, text } from './formatUtils';
  *
  * @returns SVG representation of register wires.
  */
-const formatRegisters = (registers: RegisterMap, measureGates: Metadata[], endX: number): SVGElement => {
-    const formattedRegs: SVGElement[] = [];
-    // Render qubit wires
-    for (const qId in registers) {
-        formattedRegs.push(_qubitRegister(Number(qId), registers[qId].name, endX, registers[qId].y));
-    }
-    // Render classical wires
-    measureGates.forEach(({ type, x, targetsY, controlsY }) => {
-        if (type !== GateType.Measure) return;
-        const gateY: number = controlsY[0];
-        (targetsY as number[]).forEach((y) => {
-            formattedRegs.push(_classicalRegister(x, gateY, endX, y));
-        });
+const formatRegisters = (
+  registers: RegisterMap,
+  measureGates: Metadata[],
+  endX: number,
+): SVGElement => {
+  const formattedRegs: SVGElement[] = [];
+  // Render qubit wires
+  for (const qId in registers) {
+    formattedRegs.push(
+      _qubitRegister(Number(qId), registers[qId].name, endX, registers[qId].y),
+    );
+  }
+  // Render classical wires
+  measureGates.forEach(({ type, x, targetsY, controlsY }) => {
+    if (type !== GateType.Measure) return;
+    const gateY: number = controlsY[0];
+    (targetsY as number[]).forEach((y) => {
+      formattedRegs.push(_classicalRegister(x, gateY, endX, y));
     });
-    return group(formattedRegs);
+  });
+  return group(formattedRegs);
 };
 
 /**
@@ -43,41 +49,46 @@ const formatRegisters = (registers: RegisterMap, measureGates: Metadata[], endX:
  *
  * @returns SVG representation of the given classical register.
  */
-const _classicalRegister = (startX: number, gateY: number, endX: number, wireY: number): SVGElement => {
-    const wirePadding = 1;
-    // Draw vertical lines
-    const vLine1: SVGElement = line(
-        startX + wirePadding,
-        gateY,
-        startX + wirePadding,
-        wireY - wirePadding,
-        'register-classical',
-    );
-    const vLine2: SVGElement = line(
-        startX - wirePadding,
-        gateY,
-        startX - wirePadding,
-        wireY + wirePadding,
-        'register-classical',
-    );
+const _classicalRegister = (
+  startX: number,
+  gateY: number,
+  endX: number,
+  wireY: number,
+): SVGElement => {
+  const wirePadding = 1;
+  // Draw vertical lines
+  const vLine1: SVGElement = line(
+    startX + wirePadding,
+    gateY,
+    startX + wirePadding,
+    wireY - wirePadding,
+    "register-classical",
+  );
+  const vLine2: SVGElement = line(
+    startX - wirePadding,
+    gateY,
+    startX - wirePadding,
+    wireY + wirePadding,
+    "register-classical",
+  );
 
-    // Draw horizontal lines
-    const hLine1: SVGElement = line(
-        startX + wirePadding,
-        wireY - wirePadding,
-        endX,
-        wireY - wirePadding,
-        'register-classical',
-    );
-    const hLine2: SVGElement = line(
-        startX - wirePadding,
-        wireY + wirePadding,
-        endX,
-        wireY + wirePadding,
-        'register-classical',
-    );
+  // Draw horizontal lines
+  const hLine1: SVGElement = line(
+    startX + wirePadding,
+    wireY - wirePadding,
+    endX,
+    wireY - wirePadding,
+    "register-classical",
+  );
+  const hLine2: SVGElement = line(
+    startX - wirePadding,
+    wireY + wirePadding,
+    endX,
+    wireY + wirePadding,
+    "register-classical",
+  );
 
-    return group([vLine1, vLine2, hLine1, hLine2]);
+  return group([vLine1, vLine2, hLine1, hLine2]);
 };
 
 /**
@@ -91,21 +102,21 @@ const _classicalRegister = (startX: number, gateY: number, endX: number, wireY: 
  * @returns SVG representation of the given qubit register.
  */
 const _qubitRegister = (
-    qId: number,
-    name: string | undefined,
-    endX: number,
-    y: number,
-    labelOffset = 16,
+  qId: number,
+  name: string | undefined,
+  endX: number,
+  y: number,
+  labelOffset = 16,
 ): SVGElement => {
-    const wire: SVGElement = line(regLineStart, y, endX, y);
-    const nameOrId = name ?? `q${qId}`;
+  const wire: SVGElement = line(regLineStart, y, endX, y);
+  const nameOrId = name ?? `q${qId}`;
 
-    const label: SVGElement = text(nameOrId, regLineStart, y - labelOffset);
-    label.setAttribute('dominant-baseline', 'hanging');
-    label.setAttribute('text-anchor', 'start');
-    label.setAttribute('font-size', '75%');
+  const label: SVGElement = text(nameOrId, regLineStart, y - labelOffset);
+  label.setAttribute("dominant-baseline", "hanging");
+  label.setAttribute("text-anchor", "start");
+  label.setAttribute("font-size", "75%");
 
-    return group([wire, label]);
+  return group([wire, label]);
 };
 
 export { formatRegisters, _classicalRegister, _qubitRegister };
