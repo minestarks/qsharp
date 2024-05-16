@@ -268,13 +268,14 @@ impl<'a> CompilationStateUpdater<'a> {
                 }
             }
 
-            let compilation = Compilation::new(
+            let mut compilation = Compilation::new_quick(
                 &sources,
                 self.configuration.package_type,
                 self.configuration.target_profile,
                 language_features,
                 lints_config,
             );
+            compilation.run_expensive_analysis(self.configuration.target_profile, lints_config);
 
             state.compilations.insert(
                 compilation_uri.clone(),
@@ -372,7 +373,8 @@ impl<'a> CompilationStateUpdater<'a> {
             let configuration = merge_configurations(&notebook_configuration, &configuration);
 
             // Compile the notebook and add each cell into the document map
-            let compilation = Compilation::new_notebook(
+            let lints_config = &notebook_configuration.lints_config.as_ref();
+            let mut compilation = Compilation::new_notebook_quick(
                 cells.map(|(cell_uri, version, cell_contents)| {
                     trace!("update_notebook_document: cell: {cell_uri} {version}");
                     state.open_documents.insert(
@@ -387,10 +389,12 @@ impl<'a> CompilationStateUpdater<'a> {
                 }),
                 configuration.target_profile,
                 notebook_configuration.language_features.unwrap_or_default(),
-                notebook_configuration
-                    .lints_config
-                    .as_ref()
-                    .unwrap_or(&vec![]),
+                lints_config.unwrap_or(&vec![]),
+            );
+
+            compilation.run_expensive_analysis(
+                configuration.target_profile,
+                lints_config.unwrap_or(&vec![]),
             );
 
             state.compilations.insert(
@@ -506,6 +510,7 @@ impl<'a> CompilationStateUpdater<'a> {
                     language_features,
                     &lints_config,
                 );
+                compilation.run_expensive_analysis(configuration.target_profile, &lints_config);
             }
         });
 

@@ -358,7 +358,7 @@ impl UpdateWorker<'_> {
             }
         }
 
-        trace!("applying {} updates", updates.len());
+        warn!("perf: applying {} updates", updates.len());
         if updates.len() > 100 {
             // This indicates that we're not keeping up with incoming updates.
             // Harmless, but an indicator that we could try intelligently
@@ -372,7 +372,7 @@ impl UpdateWorker<'_> {
         for update in updates.drain(..) {
             apply_update(&mut self.updater, update).await;
         }
-        trace!("end applying updates");
+        warn!("perf: end applying updates");
     }
 }
 
