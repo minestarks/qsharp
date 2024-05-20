@@ -8,19 +8,16 @@ import {
   IOperationInfo,
   IQSharpError,
   IRange,
-  ProgramConfig,
-  TargetProfile,
   VSDiagnostic,
   getCompilerWorker,
   log,
 } from "qsharp-lang";
-import { Uri, window } from "vscode";
-import { basename, isQsharpDocument } from "./common";
-import { getTarget, getTargetFriendlyName } from "./config";
-import { loadProject } from "./projectSystem";
+import { Uri } from "vscode";
+import { getTargetFriendlyName } from "./config";
 import { EventType, UserFlowStatus, sendTelemetryEvent } from "./telemetry";
 import { getRandomGuid } from "./utils";
 import { sendMessageToPanel } from "./webviewPanel";
+import { FullProgramConfig, getActiveProgram } from "./programConfig";
 
 const compilerRunTimeoutMs = 1000 * 60 * 5; // 5 minutes
 
@@ -28,8 +25,7 @@ const compilerRunTimeoutMs = 1000 * 60 * 5; // 5 minutes
  * Input parameters for generating a circuit.
  */
 type CircuitParams = {
-  program: ProgramConfig;
-  targetProfile: TargetProfile;
+  program: FullProgramConfig;
   operation?: IOperationInfo;
 };
 
@@ -58,20 +54,16 @@ export async function showCircuitCommand(
   const associationId = getRandomGuid();
   sendTelemetryEvent(EventType.TriggerCircuit, { associationId }, {});
 
-  const editor = window.activeTextEditor;
-  if (!editor || !isQsharpDocument(editor.document)) {
-    throw new Error("The currently active window is not a Q# file");
+  const program = await getActiveProgram();
+  if (!program.success) {
+    throw new Error(program.errorMsg);
   }
-
-  const docUri = editor.document.uri;
-  const program = await loadProject(docUri);
-  const targetProfile = getTarget();
 
   sendTelemetryEvent(
     EventType.CircuitStart,
     {
       associationId,
-      targetProfile,
+      targetProfile: program.programConfig.profile,
       isOperation: (!!operation).toString(),
     },
     {},
@@ -80,9 +72,8 @@ export async function showCircuitCommand(
   // Generate the circuit and update the panel.
   // generateCircuits() takes care of handling timeouts and
   // falling back to the simulator for dynamic circuits.
-  const result = await generateCircuit(extensionUri, docUri, {
-    program: program,
-    targetProfile,
+  const result = await generateCircuit(extensionUri, {
+    program: program.programConfig,
     operation,
   });
 
@@ -125,15 +116,12 @@ export async function showCircuitCommand(
  */
 async function generateCircuit(
   extensionUri: Uri,
-  docUri: Uri,
   params: CircuitParams,
 ): Promise<CircuitOrError> {
-  const programPath = docUri.path;
-
   // Before we start, reveal the panel with the "calculating" spinner
   updateCircuitPanel(
-    params.targetProfile,
-    programPath,
+    params.program.profile,
+    params.program.projectName,
     true, // reveal
     { operation: params.operation, calculating: true },
   );
@@ -150,8 +138,8 @@ async function generateCircuit(
     // there was a result comparison (i.e. if this is a dynamic circuit)
 
     updateCircuitPanel(
-      params.targetProfile,
-      programPath,
+      params.program.profile,
+      params.program.projectName,
       false, // reveal
       {
         operation: params.operation,
@@ -172,8 +160,8 @@ async function generateCircuit(
 
   if (result.result === "success") {
     updateCircuitPanel(
-      params.targetProfile,
-      programPath,
+      params.program.profile,
+      params.program.projectName,
       false, // reveal
       {
         circuit: result.circuit,
@@ -191,8 +179,8 @@ async function generateCircuit(
     }
 
     updateCircuitPanel(
-      params.targetProfile,
-      programPath,
+      params.program.profile,
+      params.program.projectName,
       false, // reveal
       {
         errorHtml,
@@ -254,7 +242,7 @@ async function getCircuitOrError(
   try {
     const circuit = await worker.getCircuit(
       params.program,
-      params.targetProfile,
+      params.program.profile,
       simulate,
       params.operation,
     );
@@ -334,7 +322,7 @@ function errorsToHtml(errors: IQSharpError[]) {
 
 export function updateCircuitPanel(
   targetProfile: string,
-  programPath: string,
+  projectName: string,
   reveal: boolean,
   params: {
     circuit?: CircuitData;
@@ -346,7 +334,7 @@ export function updateCircuitPanel(
 ) {
   const title = params?.operation
     ? `${params.operation.operation} with ${params.operation.totalNumQubits} input qubits`
-    : basename(programPath) || "Circuit";
+    : projectName || "Circuit";
 
   // Trim the Q#: prefix from the target profile name - that's meant for the ui text in the status bar
   const target = `Target profile: ${getTargetFriendlyName(targetProfile).replace("Q#: ", "")} `;

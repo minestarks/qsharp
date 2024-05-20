@@ -4,12 +4,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { IDebugServiceWorker, getDebugServiceWorker, log } from "qsharp-lang";
-import { qsharpExtensionId, isQsharpDocument } from "../common";
-import { QscDebugSession } from "./session";
-import { getRandomGuid } from "../utils";
-
 import * as vscode from "vscode";
-import { loadProject } from "../projectSystem";
+import { qsharpExtensionId } from "../common";
+import { getRandomGuid } from "../utils";
+import { QscDebugSession } from "./session";
+import {
+  getActiveQSharpDocumentUri,
+  getProgramForDocument,
+} from "../programConfig";
 
 let debugServiceWorkerFactory: () => IDebugServiceWorker;
 
@@ -79,10 +81,7 @@ function registerCommands(context: vscode.ExtensionContext) {
       return;
     }
 
-    let targetResource = resource;
-    if (!targetResource && vscode.window.activeTextEditor) {
-      targetResource = vscode.window.activeTextEditor.document.uri;
-    }
+    const targetResource = resource || getActiveQSharpDocumentUri();
 
     if (targetResource) {
       config.programUri = targetResource.toString();
@@ -113,12 +112,12 @@ class QsDebugConfigProvider implements vscode.DebugConfigurationProvider {
   ): vscode.ProviderResult<vscode.DebugConfiguration> {
     // if launch.json is missing or empty
     if (!config.type && !config.request && !config.name) {
-      const editor = vscode.window.activeTextEditor;
-      if (editor && isQsharpDocument(editor.document)) {
+      const docUri = getActiveQSharpDocumentUri();
+      if (docUri) {
         config.type = "qsharp";
         config.name = "Launch";
         config.request = "launch";
-        config.programUri = editor.document.uri.toString();
+        config.programUri = docUri.toString();
         config.shots = 1;
         config.noDebug = "noDebug" in config ? config.noDebug : false;
         config.stopOnEntry = !config.noDebug;
@@ -146,16 +145,6 @@ class QsDebugConfigProvider implements vscode.DebugConfigurationProvider {
           path: fileUri.path,
         })
         .toString();
-    } else if (!config.programUri) {
-      // We shouldn't hit this in practice
-      log.warn(
-        "Cannot find a Q# program to debug, defaulting to active editor",
-      );
-      // Use the active editor if no program is specified.
-      const editor = vscode.window.activeTextEditor;
-      if (editor && isQsharpDocument(editor.document)) {
-        config.programUri = editor.document.uri.toString();
-      }
     }
 
     log.trace(
@@ -209,12 +198,15 @@ class InlineDebugAdapterFactory
   ): Promise<vscode.DebugAdapterDescriptor> {
     const worker = debugServiceWorkerFactory();
     const uri = vscode.Uri.parse(session.configuration.programUri);
-    const project = await loadProject(uri);
+    const program = await getProgramForDocument(uri);
+    if (!program.success) {
+      throw new Error(program.errorMsg);
+    }
+
     const qscSession = new QscDebugSession(
       worker,
       session.configuration,
-      project.sources,
-      project.languageFeatures,
+      program.programConfig,
     );
 
     await qscSession.init(getRandomGuid());

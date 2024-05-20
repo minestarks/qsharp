@@ -3,11 +3,10 @@
 
 import * as vscode from "vscode";
 import { getCompilerWorker, log, ProgramConfig } from "qsharp-lang";
-import { isQsharpDocument } from "./common";
 import { EventType, sendTelemetryEvent } from "./telemetry";
 import { getRandomGuid } from "./utils";
 import { getTarget, getEnablePreviewQirGen, setTarget } from "./config";
-import { loadProject } from "./projectSystem";
+import { getActiveProgram } from "./programConfig";
 
 const generateQirTimeoutMs = 30000;
 
@@ -22,19 +21,17 @@ export class QirGenerationError extends Error {
 
 export async function getQirForActiveWindow(): Promise<string> {
   let result = "";
-  const editor = vscode.window.activeTextEditor;
-
-  if (!editor || !isQsharpDocument(editor.document)) {
-    throw new QirGenerationError(
-      "The currently active window is not a Q# file",
-    );
+  const program = await getActiveProgram();
+  if (!program.success) {
+    throw new QirGenerationError(program.errorMsg);
   }
 
+  const { languageFeatures, sources, profile } = program.programConfig;
+
   // Check that the current target is base profile, and current doc has no errors.
-  const targetProfile = getTarget();
   const enablePreviewQirGen = getEnablePreviewQirGen();
-  if (targetProfile !== "base") {
-    const allowed = targetProfile === "adaptive_ri" && enablePreviewQirGen;
+  if (profile !== "base") {
+    const allowed = profile === "adaptive_ri" && enablePreviewQirGen;
     if (!allowed) {
       const result = await vscode.window.showWarningMessage(
         "Submitting to Azure is only supported when targeting the QIR base profile.",
@@ -52,15 +49,7 @@ export async function getQirForActiveWindow(): Promise<string> {
       }
     }
   }
-  let sources: [string, string][] = [];
-  let languageFeatures: string[] = [];
-  try {
-    const result = await loadProject(editor.document.uri);
-    sources = result.sources;
-    languageFeatures = result.languageFeatures || [];
-  } catch (e: any) {
-    throw new QirGenerationError(e.message);
-  }
+
   for (const source of sources) {
     const diagnostics = await vscode.languages.getDiagnostics(
       vscode.Uri.parse(source[0]),

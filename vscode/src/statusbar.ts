@@ -10,6 +10,7 @@ import {
   getTargetFriendlyName,
   setTarget,
 } from "./config";
+import { getActiveQSharpDocumentUri } from "./programConfig";
 
 export function activateTargetProfileStatusBarItem(): vscode.Disposable[] {
   const disposables = [];
@@ -44,8 +45,7 @@ export function activateTargetProfileStatusBarItem(): vscode.Disposable[] {
   disposables.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (
-        vscode.window.activeTextEditor &&
-        isQsharpDocument(vscode.window.activeTextEditor.document) &&
+        getActiveQSharpDocumentUri() &&
         event.affectsConfiguration("Q#.qir.targetProfile")
       ) {
         refreshStatusBarItemValue();
@@ -53,10 +53,7 @@ export function activateTargetProfileStatusBarItem(): vscode.Disposable[] {
     }),
   );
 
-  if (
-    vscode.window.activeTextEditor &&
-    isQsharpDocument(vscode.window.activeTextEditor.document)
-  ) {
+  if (getActiveQSharpDocumentUri()) {
     refreshStatusBarItemValue();
   }
 

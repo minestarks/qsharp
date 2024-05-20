@@ -3,27 +3,26 @@
 
 import {
   IOperationInfo,
+  IQSharpError,
   QscEventTarget,
   getCompilerWorker,
-  IQSharpError,
   log,
 } from "qsharp-lang";
 import {
-  commands,
   ExtensionContext,
   Uri,
   ViewColumn,
   Webview,
   WebviewPanel,
   WebviewPanelSerializer,
+  commands,
   window,
 } from "vscode";
-import { isQsharpDocument } from "./common";
-import { loadProject } from "./projectSystem";
-import { EventType, sendTelemetryEvent } from "./telemetry";
-import { getRandomGuid } from "./utils";
 import { showCircuitCommand } from "./circuit";
 import { showDocumentationCommand } from "./documentation";
+import { getActiveProgram } from "./programConfig";
+import { EventType, sendTelemetryEvent } from "./telemetry";
+import { getRandomGuid } from "./utils";
 
 const QSharpWebViewType = "qsharp-webview";
 const compilerRunTimeoutMs = 1000 * 60 * 5; // 5 minutes
@@ -49,10 +48,11 @@ export function registerWebViewCommands(context: ExtensionContext) {
         { associationId },
         {},
       );
-      const editor = window.activeTextEditor;
-      if (!editor || !isQsharpDocument(editor.document)) {
-        throw new Error("The currently active window is not a Q# file");
+      const program = await getActiveProgram();
+      if (!program.success) {
+        throw new Error(program.errorMsg);
       }
+      const { sources, languageFeatures, projectName } = program.programConfig;
 
       const qubitType = await window.showQuickPick(
         [
@@ -153,12 +153,6 @@ export function registerWebViewCommands(context: ExtensionContext) {
         return;
       }
 
-      // use document uri path to get the project name, since it is normalized to `/` separators
-      // see https://code.visualstudio.com/api/references/vscode-api#Uri for difference between
-      // path and fsPath
-      const projectName =
-        editor.document.uri.path.split("/").pop()?.split(".")[0] || "program";
-
       let runName = await window.showInputBox({
         title: "Friendly name for run",
         value: `${projectName}`,
@@ -206,10 +200,6 @@ export function registerWebViewCommands(context: ExtensionContext) {
       }, compilerRunTimeoutMs);
 
       try {
-        const { sources, languageFeatures } = await loadProject(
-          editor.document.uri,
-        );
-
         const start = performance.now();
         sendTelemetryEvent(
           EventType.ResourceEstimationStart,
@@ -297,16 +287,19 @@ export function registerWebViewCommands(context: ExtensionContext) {
         return result;
       }
 
-      const editor = window.activeTextEditor;
-      if (!editor || !isQsharpDocument(editor.document)) {
-        throw new Error("The currently active window is not a Q# file");
+      const program = await getActiveProgram();
+      if (!program.success) {
+        throw new Error(program.errorMsg);
       }
+
+      const { sources, languageFeatures } = program.programConfig;
 
       // Start the worker, run the code, and send the results to the webview
       const worker = getCompilerWorker(compilerWorkerScriptPath);
       const compilerTimeout = setTimeout(() => {
         worker.terminate();
       }, compilerRunTimeoutMs);
+
       try {
         const validateShotsInput = (input: string) => {
           const result = parseFloat(input);
@@ -347,9 +340,6 @@ export function registerWebViewCommands(context: ExtensionContext) {
           };
           sendMessageToPanel("histogram", false, message);
         });
-        const { sources, languageFeatures } = await loadProject(
-          editor.document.uri,
-        );
         const start = performance.now();
         sendTelemetryEvent(EventType.HistogramStart, { associationId }, {});
         const config = {
