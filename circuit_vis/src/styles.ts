@@ -133,6 +133,11 @@ const _defaultGates = (styleConfig: StyleConfig): string => `
         fill: none;
         stroke-width: ${styleConfig.lineWidth};
     }
+    .line-measure {
+        stroke: ${styleConfig.lineStroke};
+        fill: none;
+        stroke-width: ${styleConfig.lineWidth};
+    }
     .register-classical {
         stroke-width: ${(styleConfig.lineWidth || 0) / 2};
     }`;

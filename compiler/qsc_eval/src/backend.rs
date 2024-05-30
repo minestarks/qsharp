@@ -6,7 +6,7 @@ use num_complex::Complex;
 use quantum_sparse_sim::QuantumSim;
 use rand::RngCore;
 
-use crate::val::Value;
+use crate::{intrinsic::utils, val::Value};
 
 /// The trait that must be implemented by a quantum backend, whose functions will be invoked when
 /// quantum intrinsics are called.
@@ -85,12 +85,18 @@ pub trait Backend {
     fn qubit_release(&mut self, _q: usize) {
         unimplemented!("qubit_release operation");
     }
+
     fn qubit_swap_id(&mut self, _q0: usize, _q1: usize) {
         unimplemented!("qubit_swap_id operation");
     }
-    fn capture_quantum_state(&mut self) -> (Vec<(BigUint, Complex<f64>)>, usize) {
-        unimplemented!("capture_quantum_state operation");
-    }
+
+    fn capture_quantum_state(&mut self) -> (Vec<(BigUint, Complex<f64>)>, usize);
+
+    fn capture_quantum_state_for_qubits(
+        &mut self,
+        _qs: &[usize],
+    ) -> (Vec<(BigUint, Complex<f64>)>, usize);
+
     fn qubit_is_zero(&mut self, _q: usize) -> bool {
         unimplemented!("qubit_is_zero operation");
     }
@@ -265,6 +271,20 @@ impl Backend for SparseSim {
         (new_state, count)
     }
 
+    fn capture_quantum_state_for_qubits(
+        &mut self,
+        qubits: &[usize],
+    ) -> (Vec<(BigUint, Complex<f64>)>, usize) {
+        let (state, qubit_count) = self.capture_quantum_state();
+        match utils::split_state(qubits, &state, qubit_count) {
+            Ok(state) => {
+                let qubit_count = qubits.len();
+                (state, qubit_count)
+            }
+            Err(()) => (Vec::default(), 0),
+        }
+    }
+
     fn qubit_is_zero(&mut self, q: usize) -> bool {
         self.sim.qubit_is_zero(q)
     }
@@ -321,7 +341,7 @@ pub struct Chain<T1, T2> {
 impl<T1, T2> Chain<T1, T2>
 where
     T1: Backend,
-    T2: Backend,
+    T2: Backend + Annotate,
 {
     pub fn new(primary: T1, chained: T2) -> Chain<T1, T2> {
         Chain {
@@ -334,7 +354,7 @@ where
 impl<T1, T2> Backend for Chain<T1, T2>
 where
     T1: Backend,
-    T2: Backend,
+    T2: Backend + Annotate,
 {
     type ResultType = T1::ResultType;
 
@@ -472,7 +492,19 @@ where
         &mut self,
     ) -> (Vec<(num_bigint::BigUint, num_complex::Complex<f64>)>, usize) {
         let _ = self.chained.capture_quantum_state();
-        self.main.capture_quantum_state()
+        let (state, num_qubits) = self.main.capture_quantum_state();
+        self.chained.annotate_quantum_state(&state, num_qubits);
+        (state, num_qubits)
+    }
+
+    fn capture_quantum_state_for_qubits(
+        &mut self,
+        qs: &[usize],
+    ) -> (Vec<(BigUint, Complex<f64>)>, usize) {
+        let _ = self.chained.capture_quantum_state_for_qubits(qs);
+        let (state, num_qubits) = self.main.capture_quantum_state_for_qubits(qs);
+        self.chained.annotate_quantum_state_for_qubits(&state, qs);
+        (state, num_qubits)
     }
 
     fn qubit_is_zero(&mut self, q: usize) -> bool {
@@ -489,4 +521,13 @@ where
         self.chained.set_seed(seed);
         self.main.set_seed(seed);
     }
+}
+
+pub trait Annotate {
+    fn annotate_quantum_state(&mut self, state: &[(BigUint, Complex<f64>)], count: usize);
+    fn annotate_quantum_state_for_qubits(
+        &mut self,
+        state: &[(BigUint, Complex<f64>)],
+        qubits: &[usize],
+    );
 }

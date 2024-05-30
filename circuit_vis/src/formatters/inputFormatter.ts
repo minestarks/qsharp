@@ -8,6 +8,8 @@ import {
   startY,
   registerHeight,
   classicalRegHeight,
+  annotationBoxHeight,
+  annotationBoxAvailableRows,
 } from "../constants";
 import { group, text } from "./formatUtils";
 
@@ -22,7 +24,13 @@ import { group, text } from "./formatUtils";
  */
 const formatInputs = (
   qubits: Qubit[],
-): { qubitWires: SVGElement; registers: RegisterMap; svgHeight: number } => {
+  annotationRow: boolean,
+): {
+  qubitWires: SVGElement;
+  registers: RegisterMap;
+  svgHeight: number;
+  annotationY?: number;
+} => {
   const qubitWires: SVGElement[] = [];
   const registers: RegisterMap = {};
 
@@ -54,11 +62,18 @@ const formatInputs = (
     });
   });
 
-  return {
+  const info: any = {
     qubitWires: group(qubitWires),
     registers,
     svgHeight: currY,
   };
+
+  if (annotationRow) {
+    info.annotationY = info.svgHeight;
+    info.svgHeight += annotationBoxHeight * annotationBoxAvailableRows;
+  }
+
+  return info;
 };
 
 /**

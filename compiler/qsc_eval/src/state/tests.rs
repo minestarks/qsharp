@@ -707,31 +707,50 @@ fn check_get_latex_for_complex_number() {
 
 #[test]
 fn check_get_latex() {
-    expect!([r"$|\psi\rangle = \left( \frac{1}{2}+\frac{1}{2}i \right)|00\rangle$"]).assert_eq(
-        &get_state_latex(&vec![(0_u8.into(), Complex64::new(0.5, 0.5))], 2)
-            .expect("expected valid latex"),
-    );
-    expect!([r"$|\psi\rangle = -|00\rangle$"]).assert_eq(
-        &get_state_latex(&vec![(0_u8.into(), Complex64::new(-1.0, 0.0))], 2)
-            .expect("expected valid latex"),
-    );
-    expect!([r"$|\psi\rangle = -i|00\rangle$"]).assert_eq(
-        &get_state_latex(&vec![(0_u8.into(), Complex64::new(0.0, -1.0))], 2)
-            .expect("expected valid latex"),
-    );
-    expect!([r"$|\psi\rangle =  e^{-2 i \pi / 3}|00\rangle$"]).assert_eq(
-        &get_state_latex(
-            &vec![(
-                0_u8.into(),
-                Complex64::new((-2.0 * PI / 3.0).cos(), (-2.0 * PI / 3.0).sin()),
-            )],
-            2,
+    expect!([r#"
+        Some(
+            "$|\\psi\\rangle = \\left( \\frac{1}{2}+\\frac{1}{2}i \\right)|00\\rangle$",
         )
-        .expect("expected valid latex"),
-    );
-    expect!([r"$|\psi\rangle = \left( 1+\frac{\sqrt{2}}{2}i \right)|00\rangle+\left( 1+\frac{\sqrt{2}}{2}i \right)|10\rangle$"])
-    .assert_eq(&get_state_latex(
-        &vec![
+    "#])
+    .assert_debug_eq(&get_state_latex(
+        &[(0_u8.into(), Complex64::new(0.5, 0.5))],
+        2,
+    ));
+    expect!([r#"
+        Some(
+            "$|\\psi\\rangle = -|00\\rangle$",
+        )
+    "#])
+    .assert_debug_eq(&get_state_latex(
+        &[(0_u8.into(), Complex64::new(-1.0, 0.0))],
+        2,
+    ));
+    expect!([r#"
+        Some(
+            "$|\\psi\\rangle = -i|00\\rangle$",
+        )
+    "#])
+    .assert_debug_eq(&get_state_latex(
+        &[(0_u8.into(), Complex64::new(0.0, -1.0))],
+        2,
+    ));
+    expect!([r#"
+        Some(
+            "$|\\psi\\rangle =  e^{-2 i \\pi / 3}|00\\rangle$",
+        )
+    "#])
+    .assert_debug_eq(&get_state_latex(
+        &[(
+            0_u8.into(),
+            Complex64::new((-2.0 * PI / 3.0).cos(), (-2.0 * PI / 3.0).sin()),
+        )],
+        2,
+    ));
+    expect!([r#"
+        "$|\\psi\\rangle = \\left( 1+\\frac{\\sqrt{2}}{2}i \\right)|00\\rangle+\\left( 1+\\frac{\\sqrt{2}}{2}i \\right)|10\\rangle$"
+    "#])
+    .assert_debug_eq(&get_state_latex(
+        &[
             (0_u8.into(), Complex64::new(1.0, 1.0 / 2.0_f64.sqrt())),
             (2_u8.into(), Complex64::new(1.0, 1.0 / 2.0_f64.sqrt())),
         ],

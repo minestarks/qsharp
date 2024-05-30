@@ -131,6 +131,21 @@ export const box = (
     height: height.toString(),
   });
 
+export const foreignObject = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  className: string,
+): SVGElement =>
+  createSvgElement("foreignObject", {
+    class: className,
+    x: x.toString(),
+    y: y.toString(),
+    width: width.toString(),
+    height: height.toString(),
+  });
+
 /**
  * Generate the SVG text element from a given text string.
  *
@@ -146,12 +161,15 @@ export const text = (
   x: number,
   y: number,
   fs: number = labelFontSize,
+  className: string | undefined = undefined,
 ): SVGElement => {
-  const el: SVGElement = createSvgElement("text", {
+  const attr: any = {
     "font-size": fs.toString(),
     x: x.toString(),
     y: y.toString(),
-  });
+  };
+  if (className != null) attr.class = className;
+  const el: SVGElement = createSvgElement("text", attr);
   el.textContent = text;
   return el;
 };

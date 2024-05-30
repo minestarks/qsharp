@@ -137,6 +137,13 @@ impl Backend for CustomSim {
         self.sim.capture_quantum_state()
     }
 
+    fn capture_quantum_state_for_qubits(
+        &mut self,
+        qs: &[usize],
+    ) -> (Vec<(num_bigint::BigUint, num_complex::Complex<f64>)>, usize) {
+        self.sim.capture_quantum_state_for_qubits(qs)
+    }
+
     fn qubit_is_zero(&mut self, q: usize) -> bool {
         self.sim.qubit_is_zero(q)
     }

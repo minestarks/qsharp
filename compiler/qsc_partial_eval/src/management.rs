@@ -125,6 +125,13 @@ impl Backend for QuantumIntrinsicsChecker {
         (Vec::new(), 0)
     }
 
+    fn capture_quantum_state_for_qubits(
+        &mut self,
+        _qs: &[usize],
+    ) -> (Vec<(BigUint, Complex<f64>)>, usize) {
+        (Vec::new(), 0)
+    }
+
     // Only intrinsic functions are supported here since they're the only ones that will be classically evaluated.
     fn custom_intrinsic(
         &mut self,

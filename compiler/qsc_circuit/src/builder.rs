@@ -8,7 +8,11 @@ use crate::{
 use num_bigint::BigUint;
 use num_complex::Complex;
 use qsc_data_structures::index_map::IndexMap;
-use qsc_eval::{backend::Backend, val::Value};
+use qsc_eval::{
+    backend::{Annotate, Backend},
+    state::{fmt_complex, format_state_id, get_latex_without_psi},
+    val::Value,
+};
 use std::{fmt::Write, mem::take, rc::Rc};
 
 /// Backend implementation that builds a circuit representation.
@@ -186,6 +190,13 @@ impl Backend for Builder {
         (Vec::new(), 0)
     }
 
+    fn capture_quantum_state_for_qubits(
+        &mut self,
+        _qs: &[usize],
+    ) -> (Vec<(BigUint, Complex<f64>)>, usize) {
+        (Vec::new(), 0)
+    }
+
     fn qubit_is_zero(&mut self, _q: usize) -> bool {
         // Because `qubit_is_zero` is called on every qubit release, this must return
         // true to avoid a panic.
@@ -264,8 +275,19 @@ impl Builder {
             }
         }
 
+        let num_qubits = self.remapper.num_hardware_qubits();
+        // if self.has_annotation {
+        //     num_qubits += 1;
+        // }
+
+        // for o in &mut circuit.operations {
+        //     if o.gate == "annotation" {
+        //         o.targets = vec![Register::quantum(num_qubits - 1)]
+        //     }
+        // }
+
         // add qubit declarations
-        for i in 0..self.remapper.num_qubits() {
+        for i in 0..num_qubits {
             let num_measurements = self.num_measurements_for_qubit(WireId(i));
             circuit.qubits.push(crate::circuit::Qubit {
                 id: i,
@@ -422,7 +444,12 @@ impl Remapper {
     }
 
     #[must_use]
-    fn num_qubits(&self) -> usize {
+    fn num_allocated_qubits(&self) -> usize {
+        self.next_qubit_id
+    }
+
+    #[must_use]
+    fn num_hardware_qubits(&self) -> usize {
         self.next_qubit_wire_id.0
     }
 
@@ -446,6 +473,65 @@ impl From<usize> for WireId {
 impl From<WireId> for usize {
     fn from(id: WireId) -> Self {
         id.0
+    }
+}
+
+impl Annotate for Builder {
+    fn annotate_quantum_state(&mut self, state: &[(BigUint, Complex<f64>)], count: usize) {
+        let result = format_state(state, count);
+
+        self.circuit.operations.push(Operation {
+            gate: "annotation".into(),
+            display_args: Some(result),
+            is_controlled: false,
+            is_adjoint: false,
+            is_measurement: false,
+            controls: vec![],
+            targets: (0..self.remapper.num_allocated_qubits())
+                .map(Register::quantum)
+                .collect(),
+            children: vec![],
+        });
+    }
+
+    fn annotate_quantum_state_for_qubits(
+        &mut self,
+        state: &[(BigUint, Complex<f64>)],
+        qubits: &[usize],
+    ) {
+        let result = format_state(state, qubits.len());
+
+        self.circuit.operations.push(Operation {
+            gate: "annotation".into(),
+            display_args: Some(result),
+            is_controlled: false,
+            is_adjoint: false,
+            is_measurement: false,
+            controls: vec![],
+            targets: qubits.iter().map(|i| Register::quantum(*i)).collect(),
+            children: vec![],
+        });
+    }
+}
+
+fn format_state(state: &[(BigUint, Complex<f64>)], count: usize) -> String {
+    let latex = get_latex_without_psi(state, count);
+
+    match latex {
+        None => {
+            let mut result = String::new();
+            for (id, val) in state {
+                writeln!(
+                    result,
+                    "{}: {}",
+                    format_state_id(id, count),
+                    fmt_complex(val),
+                )
+                .expect("writing to string should succeed");
+            }
+            result
+        }
+        Some(latex) => latex,
     }
 }
 

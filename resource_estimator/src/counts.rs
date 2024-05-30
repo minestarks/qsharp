@@ -515,6 +515,13 @@ impl Backend for LogicalCounter {
         (Vec::new(), 0)
     }
 
+    fn capture_quantum_state_for_qubits(
+        &mut self,
+        _qs: &[usize],
+    ) -> (Vec<(BigUint, Complex<f64>)>, usize) {
+        (Vec::new(), 0)
+    }
+
     fn qubit_is_zero(&mut self, _q: usize) -> bool {
         true
     }

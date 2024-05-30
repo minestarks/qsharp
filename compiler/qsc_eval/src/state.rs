@@ -334,7 +334,7 @@ struct Term {
     coordinate: ComplexNumber,
 }
 
-fn get_terms_for_state(state: &Vec<(BigUint, Complex64)>) -> Vec<Term> {
+fn get_terms_for_state(state: &[(BigUint, Complex64)]) -> Vec<Term> {
     let mut result: Vec<Term> = Vec::with_capacity(state.len());
     for (basis_vector, coefficient) in state {
         result.push(Term {
@@ -349,7 +349,19 @@ fn get_terms_for_state(state: &Vec<(BigUint, Complex64)>) -> Vec<Term> {
 /// `None` is returned if the resulting formula is not nice, i.e.
 /// if the formula consists of more than 16 terms or if more than two coefficients are not recognized.
 #[must_use]
-pub fn get_state_latex(state: &Vec<(BigUint, Complex64)>, qubit_count: usize) -> Option<String> {
+pub fn get_state_latex(state: &[(BigUint, Complex64)], qubit_count: usize) -> Option<String> {
+    let inner = get_latex_inner(state, qubit_count);
+    inner.map(|inner| format!("$|\\psi\\rangle = {inner}"))
+}
+
+#[must_use]
+pub fn get_latex_without_psi(state: &[(BigUint, Complex64)], qubit_count: usize) -> Option<String> {
+    let inner = get_latex_inner(state, qubit_count);
+    inner.map(|inner| format!("${inner}"))
+}
+
+#[must_use]
+pub fn get_latex_inner(state: &[(BigUint, Complex64)], qubit_count: usize) -> Option<String> {
     if state.len() > 16 {
         return None;
     }
@@ -371,7 +383,6 @@ pub fn get_state_latex(state: &Vec<(BigUint, Complex64)>, qubit_count: usize) ->
     }
 
     let mut latex: String = String::with_capacity(200);
-    latex.push_str("$|\\psi\\rangle = ");
     let mut is_first: bool = true;
     for term in terms {
         write_latex_for_term(&mut latex, &term, !is_first);

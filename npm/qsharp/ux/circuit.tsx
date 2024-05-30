@@ -14,7 +14,10 @@ const MAX_OPERATIONS = 10000;
 const MAX_QUBITS = 1000;
 
 // This component is shared by the Python widget and the VS Code panel
-export function Circuit(props: { circuit: qviz.Circuit }) {
+export function Circuit(props: {
+  circuit: qviz.Circuit;
+  mdRender: (input: string) => string;
+}) {
   const circuit = props.circuit;
   const unrenderable =
     circuit.qubits.length === 0 ||
@@ -29,13 +32,16 @@ export function Circuit(props: { circuit: qviz.Circuit }) {
           operations={props.circuit.operations.length}
         />
       ) : (
-        <ZoomableCircuit circuit={props.circuit} />
+        <ZoomableCircuit {...props} />
       )}
     </div>
   );
 }
 
-function ZoomableCircuit(props: { circuit: qviz.Circuit }) {
+function ZoomableCircuit(props: {
+  circuit: qviz.Circuit;
+  mdRender: (input: string) => string;
+}) {
   const circuitDiv = useRef<HTMLDivElement>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [rendering, setRendering] = useState(true);
@@ -52,7 +58,7 @@ function ZoomableCircuit(props: { circuit: qviz.Circuit }) {
     if (rendering) {
       const container = circuitDiv.current!;
       // Draw the circuit - may take a while for large circuits
-      const svg = renderCircuit(props.circuit, container);
+      const svg = renderCircuit(props.circuit, props.mdRender, container);
       // Calculate the initial zoom level based on the container width
       const initialZoom = calculateZoomToFit(container, svg as SVGElement);
       // Set the initial zoom level
@@ -128,13 +134,42 @@ function ZoomableCircuit(props: { circuit: qviz.Circuit }) {
     }
   }
 
-  function renderCircuit(circuit: qviz.Circuit, container: HTMLDivElement) {
-    qviz.draw(circuit, container);
+  function renderCircuit(
+    circuit: qviz.Circuit,
+    mdRender: (input: string) => string,
+    container: HTMLDivElement,
+  ) {
+    qviz.drawWithMd(circuit, container, mdRender);
 
     // quantum-viz hardcodes the styles in the SVG.
     // Remove the style elements -- we'll define the styles in our own CSS.
     const styleElements = container.querySelectorAll("style");
     styleElements?.forEach((tag) => tag.remove());
+
+    // Render the markdown in the annotations
+    const texts = container.querySelectorAll(".annotation-text");
+    texts.forEach((text) => {
+      if (text.innerHTML === "annotation") {
+        text.innerHTML = "";
+        return;
+      }
+      console.log(text.innerHTML);
+      const rendered = mdRender(text.innerHTML);
+
+      const foreignObject =
+        text.parentElement!.querySelectorAll(".annotation-box")[0];
+
+      if (foreignObject) {
+        text.innerHTML = "";
+        foreignObject.innerHTML += `
+        <div xmlns="http://www.w3.org/1999/xhtml" style="text-align: center">
+          ${rendered}
+        </div>
+      `;
+      }
+
+      console.log(rendered);
+    });
 
     return container.getElementsByClassName("qviz")[0]!;
   }
@@ -247,7 +282,9 @@ export function CircuitPanel(props: CircuitProps) {
           <Spinner />
         </div>
       ) : null}
-      {props.circuit ? <Circuit circuit={props.circuit}></Circuit> : null}
+      {props.circuit ? (
+        <Circuit circuit={props.circuit} mdRender={props.mdRender}></Circuit>
+      ) : null}
     </div>
   );
 }

@@ -72,11 +72,17 @@
 }
 
 /* Measurement gate icon */
-.qs-circuit .gate > g > line,
+.qs-circuit .line-measure,
 .qs-circuit .arc-measure {
   stroke: var(--vscode-button-foreground, #000000);
   fill: none;
   stroke-width: 1;
+}
+
+.qs-circuit .annotation-target {
+  fill: var(--vscode-button-secondaryBackground, #d9f1fa);
+  stroke: transparent;
+  opacity: 0.7;
 }
 
 /* SWAP gate */

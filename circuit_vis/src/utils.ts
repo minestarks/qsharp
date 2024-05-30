@@ -7,6 +7,7 @@ import {
   labelPadding,
   labelFontSize,
   argsFontSize,
+  annotationLineWidth,
 } from "./constants";
 
 /**
@@ -43,6 +44,8 @@ const getGateWidth = ({
     case GateType.Cnot:
     case GateType.Swap:
       return minGateWidth;
+    case GateType.Annotation:
+      return annotationLineWidth;
     default: {
       const labelWidth = _getStringWidth(label);
       const argsWidth =

@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-mod utils;
+pub(crate) mod utils;
 
 #[cfg(test)]
 mod tests;
@@ -69,10 +69,13 @@ pub(crate) fn call(
             if qubits.len() != qubits.iter().collect::<FxHashSet<_>>().len() {
                 return Err(Error::QubitUniqueness(arg_span));
             }
-            let (state, qubit_count) = sim.capture_quantum_state();
-            let state = utils::split_state(&qubits, &state, qubit_count)
-                .map_err(|()| Error::QubitsNotSeparable(arg_span))?;
-            match out.state(state, qubits.len()) {
+            let (state, qubit_count) = sim.capture_quantum_state_for_qubits(&qubits);
+
+            if state.is_empty() {
+                return Err(Error::QubitsNotSeparable(arg_span));
+            }
+
+            match out.state(state, qubit_count) {
                 Ok(()) => Ok(Value::unit()),
                 Err(_) => Err(Error::OutputFail(name_span)),
             }

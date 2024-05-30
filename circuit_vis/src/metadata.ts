@@ -6,8 +6,8 @@ import { DataAttributes } from "./circuit";
 /**
  * Enum for the various gate operations handled.
  */
+/** Measurement gate. */
 export enum GateType {
-  /** Measurement gate. */
   Measure,
   /** CNOT gate. */
   Cnot,
@@ -23,6 +23,8 @@ export enum GateType {
   ClassicalControlled,
   /** Group of nested gates */
   Group,
+  /** Annotation */
+  Annotation,
   /** Invalid gate. */
   Invalid,
 }
