@@ -125,6 +125,8 @@ export class QSharpLanguageService implements ILanguageService {
     log.info("Constructing a QSharpLanguageService instance");
     this.languageService = new wasm.LanguageService();
 
+    // This start execution of the background work. The returned Promise is
+    // only fulfilled when the language service is being torn down (dispose())
     this.backgroundWork = this.languageService.start_background_work(
       this.onDiagnostics.bind(this),
       host,
@@ -171,17 +173,12 @@ export class QSharpLanguageService implements ILanguageService {
     documentUri: string,
     position: IPosition,
   ): Promise<ICompletionList> {
-    // Tiny delay to let the compilation catch up before we invoke
-    // the completion provider.
-    // This becomes important when the completion list is triggered
-    // during typing. If the last character typed is significant to
-    // the completion (e.g. in `Foo.` completions)
-    // it's critical that the completion provider "sees" this character.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await this.languageService.apply_pending_updates();
     return this.languageService.get_completions(documentUri, position);
   }
 
   async getFormatChanges(documentUri: string): Promise<ITextEdit[]> {
+    await this.languageService.apply_pending_updates();
     return this.languageService.get_format_changes(documentUri);
   }
 

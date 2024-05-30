@@ -70,6 +70,15 @@ impl LanguageService {
         self.0.stop_updates();
     }
 
+    pub fn apply_pending_updates(&self) -> js_sys::Promise {
+        let waiter = self.0.pending_updates();
+
+        future_to_promise(async move {
+            waiter.wait().await;
+            Ok(JsValue::undefined())
+        })
+    }
+
     pub fn update_configuration(&mut self, config: IWorkspaceConfiguration) {
         let config: WorkspaceConfiguration = config.into();
         self.0

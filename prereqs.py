@@ -16,7 +16,7 @@ python_ver = (3, 11)  # Python support for Windows on ARM64 requires v3.11 or la
 rust_ver = (1, 80)  # Ensure Rust version 1.80 or later is installed
 node_ver = (
     18,
-    17,
+    18,
 )
 wasmpack_ver = (0, 12, 1)  # Latest tested wasm-pack version
 rust_fmt_ver = (1, 7, 0)  # Current version when Rust 1.80 shipped

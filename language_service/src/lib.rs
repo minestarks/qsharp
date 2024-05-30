@@ -21,7 +21,10 @@ mod test_utils;
 mod tests;
 
 use compilation::Compilation;
-use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use futures::channel::{
+    mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
+    oneshot,
+};
 use futures_util::StreamExt;
 use log::{trace, warn};
 use protocol::{
@@ -81,6 +84,26 @@ impl LanguageService {
         };
         self.state_updater = Some(send);
         worker
+    }
+
+    /// Applies all the pending updates to the compilation state.
+    #[must_use]
+    pub fn pending_updates(&self) -> PendingUpdateWaiter {
+        let (sender, receiver) = oneshot::channel::<()>();
+        let receiver = if let Some(updater) = self.state_updater.as_ref() {
+            updater
+                .unbounded_send(Update::Target { sender })
+                .expect("send error in apply_pending_updates");
+
+            receiver
+        } else {
+            warn!("Ignoring update, no worker is listening");
+            sender
+                .send(())
+                .expect("send error in apply_pending_updates");
+            receiver
+        };
+        PendingUpdateWaiter { recv: receiver }
     }
 
     /// Stops the language service from processing further updates.
@@ -328,6 +351,18 @@ pub struct UpdateWorker<'a> {
     recv: UnboundedReceiver<Update>,
 }
 
+pub struct PendingUpdateWaiter {
+    recv: oneshot::Receiver<()>,
+}
+
+impl PendingUpdateWaiter {
+    pub async fn wait(self) {
+        self.recv
+            .await
+            .expect("receive error in PendingUpdateWaiter");
+    }
+}
+
 impl UpdateWorker<'_> {
     /// Runs the update worker. This method is expected to run
     /// for the entire lifetime of the language service.
@@ -340,18 +375,6 @@ impl UpdateWorker<'_> {
         while let Some(update) = self.recv.next().await {
             self.apply_this_and_pending(vec![update]).await;
         }
-    }
-
-    /// Convenience method to apply *only* the pending updates
-    /// in the message queue. Used for testing, when it's desirable
-    /// to control exactly when updates are applied.
-    ///
-    /// Since `run()` will mutably borrow `self` for the entire
-    /// lifetime of the worker, this method should not ever be used
-    /// if `run()` has been called.
-    #[cfg(test)]
-    async fn apply_pending(&mut self) {
-        self.apply_this_and_pending(vec![]).await;
     }
 
     async fn apply_this_and_pending(&mut self, mut updates: Vec<Update>) {
@@ -412,7 +435,8 @@ fn push_update(pending_updates: &mut Vec<Update>, update: Update) {
         }
         Update::Configuration { .. }
         | Update::CloseDocument { .. }
-        | Update::CloseNotebookDocument { .. } => (), // These events aren't noisy enough to bother deduping.
+        | Update::CloseNotebookDocument { .. } // These events aren't noisy enough to bother deduping.
+        | Update::Target { .. } => (),
     }
     pending_updates.push(update);
 }
@@ -446,10 +470,16 @@ async fn apply_update(updater: &mut CompilationStateUpdater<'_>, update: Update)
         Update::Configuration { changed } => {
             updater.update_configuration(changed);
         }
+        Update::Target { sender } => {
+            let _ = sender.send(());
+        }
     }
 }
 
 enum Update {
+    Target {
+        sender: oneshot::Sender<()>,
+    },
     Configuration {
         changed: WorkspaceConfigurationUpdate,
     },

@@ -3,35 +3,40 @@
 
 #![allow(clippy::needless_raw_string_hashes)]
 
+pub mod test_fs;
+
 use crate::{
     protocol::{DiagnosticUpdate, ErrorKind},
     Encoding, LanguageService, UpdateWorker,
 };
 use expect_test::{expect, Expect};
-use qsc::{compile, line_column::Position, project};
+use futures::Future;
+use qsc::{
+    compile::{self},
+    line_column::Position,
+    project,
+};
 use std::{cell::RefCell, rc::Rc};
 use test_fs::{dir, file, FsNode, TestProjectHost};
 
-pub(crate) mod test_fs;
-
+#[allow(clippy::await_holding_refcell_ref)]
 #[tokio::test]
 async fn single_document() {
-    let received_errors = RefCell::new(Vec::new());
-    let mut ls = LanguageService::new(Encoding::Utf8);
-    let mut worker = create_update_worker(&mut ls, &received_errors);
+    run_async_ls_test(|ls, received_errors| async move {
+        let mut ls = ls.borrow_mut();
 
-    ls.update_document("foo.qs", 1, "namespace Foo { }");
+        ls.update_document("foo.qs", 1, "namespace Foo { }");
 
-    worker.apply_pending().await;
+        ls.pending_updates().wait().await;
 
-    check_errors_and_compilation(
-        &ls,
-        &mut received_errors.borrow_mut(),
-        "foo.qs",
-        &(expect![[r#"
-            []
-        "#]]),
-        &(expect![[r#"
+        check_errors_and_compilation(
+            &ls,
+            &mut received_errors.borrow_mut(),
+            "foo.qs",
+            &(expect![[r#"
+                []
+            "#]]),
+            &(expect![[r#"
             SourceMap {
                 sources: [
                     Source {
@@ -44,28 +49,32 @@ async fn single_document() {
                 entry: None,
             }
         "#]]),
-    );
+        );
+
+        ls.stop_updates();
+    })
+    .await;
 }
 
+#[allow(clippy::await_holding_refcell_ref)]
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn single_document_update() {
-    let received_errors = RefCell::new(Vec::new());
-    let mut ls = LanguageService::new(Encoding::Utf8);
-    let mut worker = create_update_worker(&mut ls, &received_errors);
+    run_async_ls_test(|ls, received_errors| async move {
+        let mut ls = ls.borrow_mut();
 
-    ls.update_document("foo.qs", 1, "namespace Foo { }");
+        ls.update_document("foo.qs", 1, "namespace Foo { }");
 
-    worker.apply_pending().await;
+        ls.pending_updates().wait().await;
 
-    check_errors_and_compilation(
-        &ls,
-        &mut received_errors.borrow_mut(),
-        "foo.qs",
-        &(expect![[r#"
-            []
-        "#]]),
-        &(expect![[r#"
+        check_errors_and_compilation(
+            &ls,
+            &mut received_errors.borrow_mut(),
+            "foo.qs",
+            &(expect![[r#"
+                []
+            "#]]),
+            &(expect![[r#"
             SourceMap {
                 sources: [
                     Source {
@@ -78,25 +87,25 @@ async fn single_document_update() {
                 entry: None,
             }
         "#]]),
-    );
+        );
 
-    // UPDATE 2
-    ls.update_document(
-        "foo.qs",
-        1,
-        "namespace Foo { @EntryPoint() operation Bar() : Unit {} }",
-    );
+        // UPDATE 2
+        ls.update_document(
+            "foo.qs",
+            1,
+            "namespace Foo { @EntryPoint() operation Bar() : Unit {} }",
+        );
 
-    worker.apply_pending().await;
+        ls.pending_updates().wait().await;
 
-    check_errors_and_compilation(
-        &ls,
-        &mut received_errors.borrow_mut(),
-        "foo.qs",
-        &(expect![[r#"
-            []
-        "#]]),
-        &(expect![[r#"
+        check_errors_and_compilation(
+            &ls,
+            &mut received_errors.borrow_mut(),
+            "foo.qs",
+            &(expect![[r#"
+                []
+            "#]]),
+            &(expect![[r#"
             SourceMap {
                 sources: [
                     Source {
@@ -109,38 +118,48 @@ async fn single_document_update() {
                 entry: None,
             }
         "#]]),
-    );
+        );
+
+        ls.stop_updates();
+    })
+    .await;
 }
 
+#[allow(clippy::await_holding_refcell_ref)]
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn document_in_project() {
-    let received_errors = RefCell::new(Vec::new());
-    let mut ls = LanguageService::new(Encoding::Utf8);
-    let mut worker = create_update_worker(&mut ls, &received_errors);
+    println!("document_in_project : start");
+    run_async_ls_test(|ls, received_errors| async move {
+        let mut ls = ls.borrow_mut();
+        println!("document_in_project : task start");
+        ls.update_document("project/src/this_file.qs", 1, "namespace Foo { }");
 
-    ls.update_document("project/src/this_file.qs", 1, "namespace Foo { }");
+        println!("document_in_project : updated document");
 
-    check_errors_and_no_compilation(
-        &ls,
-        &mut received_errors.borrow_mut(),
-        "project/src/this_file.qs",
-        &(expect![[r#"
+        check_errors_and_no_compilation(
+            &ls,
+            &mut received_errors.borrow_mut(),
+            "project/src/this_file.qs",
+            &(expect![[r#"
             []
         "#]]),
-    );
+        );
+        println!("document_in_project : checked errors");
 
-    // now process background work
-    worker.apply_pending().await;
+        // now process background work
+        ls.pending_updates().wait().await;
 
-    check_errors_and_compilation(
-        &ls,
-        &mut received_errors.borrow_mut(),
-        "project/src/this_file.qs",
-        &expect![[r#"
-            []
-        "#]],
-        &expect![[r#"
+        println!("document_in_project : drained queue");
+
+        check_errors_and_compilation(
+            &ls,
+            &mut received_errors.borrow_mut(),
+            "project/src/this_file.qs",
+            &expect![[r#"
+                []
+            "#]],
+            &expect![[r#"
             SourceMap {
                 sources: [
                     Source {
@@ -160,7 +179,12 @@ async fn document_in_project() {
                 entry: None,
             }
         "#]],
-    );
+        );
+
+        ls.stop_updates();
+    })
+    .await;
+    println!("document_in_project : end");
 }
 
 // the below tests test the asynchronous behavior of the language service.
@@ -168,59 +192,93 @@ async fn document_in_project() {
 // they all go through the same `document_op` infrastructure.
 #[tokio::test]
 async fn completions_requested_before_document_load() {
-    let errors = RefCell::new(Vec::new());
-    let mut ls = LanguageService::new(Encoding::Utf8);
-    let _worker = create_update_worker(&mut ls, &errors);
+    run_async_ls_test(|ls, _| async move {
+        let mut ls = ls.borrow_mut();
 
-    ls.update_document(
-        "foo.qs",
-        1,
-        "namespace Foo { open Microsoft.Quantum.Diagnostics; @EntryPoint() operation Main() : Unit { DumpMachine() } }",
-    );
-
-    // we intentionally don't await work to test how LSP features function when
-    // a document hasn't fully loaded
-
-    // this should be empty, because the doc hasn't loaded
-    assert!(ls
-        .get_completions(
+        ls.update_document(
             "foo.qs",
-            Position {
-                line: 0,
-                column: 76
-            }
-        )
-        .items
-        .is_empty());
+            1,
+            "namespace Foo { open Microsoft.Quantum.Diagnostics; @EntryPoint() operation Main() : Unit { DumpMachine() } }",
+        );
+
+        // we intentionally don't await work to test how LSP features function when
+        // a document hasn't fully loaded
+
+        // this should be empty, because the doc hasn't loaded
+        assert!(ls
+            .get_completions(
+                "foo.qs",
+                Position {
+                    line: 0,
+                    column: 76
+                }
+            )
+            .items
+            .is_empty());
+        ls.stop_updates();
+    }).await;
 }
 
+#[allow(clippy::await_holding_refcell_ref)]
 #[tokio::test]
 async fn completions_requested_after_document_load() {
-    let errors = RefCell::new(Vec::new());
-    let mut ls = LanguageService::new(Encoding::Utf8);
-    let mut worker = create_update_worker(&mut ls, &errors);
+    run_async_ls_test(|ls, _| async move {
+        let mut ls = ls.borrow_mut();
+        println!("do_test : start");
 
-    // this test is a contrast to `completions_requested_before_document_load`
-    // we want to ensure that completions load when the update_document call has been awaited
-    ls.update_document(
-        "foo.qs",
-        1,
-        "namespace Foo { open Microsoft.Quantum.Diagnostics; @EntryPoint() operation Main() : Unit { DumpMachine() } }",
-    );
-
-    worker.apply_pending().await;
-
-    assert!(&ls
-        .get_completions(
+        // this test is a contrast to `completions_requested_before_document_load`
+        // we want to ensure that completions load when the pending updates have been awaited
+        ls.update_document(
             "foo.qs",
-            Position {
-                line: 0,
-                column: 92,
-            },
+            1,
+            "namespace Foo { open Microsoft.Quantum.Diagnostics; @EntryPoint() operation Main() : Unit { DumpMachine() } }",
+        );
+
+        println!("do_test : updated document");
+
+        ls.pending_updates().wait().await;
+
+        println!("do_test : drained queue");
+
+        assert!(&ls
+            .get_completions(
+                "foo.qs",
+                Position {
+                    line: 0,
+                    column: 92,
+                },
+            )
+            .items
+            .iter()
+            .any(|item| item.label == "DumpMachine"));
+
+        println!("do_test : end");
+
+        ls.stop_updates();
+    })
+    .await;
+}
+
+async fn run_async_ls_test<F>(
+    mut test: impl FnMut(Rc<RefCell<LanguageService>>, Rc<RefCell<Vec<ErrorInfo>>>) -> F,
+) where
+    F: Future<Output = ()> + 'static,
+{
+    println!("run_async_ls_test : start");
+    let received_errors = Rc::new(RefCell::new(Vec::new()));
+    let ls = Rc::new(RefCell::new(LanguageService::new(Encoding::Utf8)));
+    let set = tokio::task::LocalSet::new();
+    set.run_until(async move {
+        println!("run_async_ls_test : spawning tasks");
+        // `spawn_local` ensures that the future is spawned on the local
+        // task set.
+        tokio::try_join!(
+            tokio::task::spawn_local(background_work(ls.clone(), received_errors.clone())),
+            tokio::task::spawn_local(test(ls.clone(), received_errors.clone()))
         )
-        .items
-        .iter()
-        .any(|item| item.label == "DumpMachine"));
+        .expect("tasks should not fail");
+    })
+    .await;
 }
 
 fn check_errors_and_compilation(
@@ -262,6 +320,17 @@ type ErrorInfo = (
     Vec<compile::ErrorKind>,
     Vec<project::Error>,
 );
+
+async fn background_work(
+    ls: Rc<RefCell<LanguageService>>,
+    received_errors: Rc<RefCell<Vec<ErrorInfo>>>,
+) {
+    println!("work_ : start");
+    let mut worker = create_update_worker(&mut ls.borrow_mut(), &received_errors);
+    println!("work_ : created updated worker");
+    worker.run().await;
+    println!("work_ : work done");
+}
 
 fn create_update_worker<'a>(
     ls: &mut LanguageService,
