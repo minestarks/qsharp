@@ -18,7 +18,6 @@ pub struct Circuit {
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
 pub struct Operation {
-    #[allow(clippy::struct_field_names)]
     pub gate: String,
     #[serde(rename = "displayArgs")]
     #[serde(skip_serializing_if = "Option::is_none")]
