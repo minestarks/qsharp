@@ -25,3 +25,5 @@ __pycache__/
 /vscode/out/
 /vscode/test/out/
 /wasm/
+/circuit_vis/lib/
+/circuit_vis/dist/

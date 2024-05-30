@@ -132,7 +132,7 @@ async function generateCircuit(
   let result = await getCircuitOrErrorWithTimeout(
     extensionUri,
     params,
-    false, // simulate
+    true, // simulate
   );
 
   if (result.result === "error" && result.hasResultComparisonError) {

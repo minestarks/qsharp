@@ -66,7 +66,11 @@ const processOperations = (
 
       if (
         op != null &&
-        [GateType.Unitary, GateType.ControlledUnitary].includes(metadata.type)
+        [
+          GateType.Unitary,
+          GateType.ControlledUnitary,
+          GateType.Annotation,
+        ].includes(metadata.type)
       ) {
         // If gate is a unitary type, split targetsY into groups if there
         // is a classical register between them for rendering
@@ -91,6 +95,7 @@ const processOperations = (
           op.targets,
           classicalRegY,
           registers,
+          metadata.type === GateType.Annotation,
         );
       }
 
@@ -132,7 +137,7 @@ const _groupOperations = (
   const numRegs: number =
     Math.max(-1, ...Object.keys(registers).map(Number)) + 1;
   const groupedOps: number[][] = Array.from(Array(numRegs), () => new Array(0));
-  operations.forEach(({ targets, controls }, instrIdx) => {
+  operations.forEach(({ targets, controls, gate }, instrIdx) => {
     const ctrls: Register[] = controls || [];
     const qRegs: Register[] = [...ctrls, ...targets].filter(
       ({ type }) => (type || RegisterType.Qubit) === RegisterType.Qubit,
@@ -142,15 +147,15 @@ const _groupOperations = (
       ({ type }) => (type || RegisterType.Qubit) === RegisterType.Classical,
     );
     const isClassicallyControlled: boolean = clsControls.length > 0;
-    if (!isClassicallyControlled && qRegs.length === 0) return;
+    const annotation = gate === "annotation";
+    const padAll = isClassicallyControlled || annotation;
+
+    if (!padAll && qRegs.length === 0) return;
+
     // If operation is classically-controlled, pad all qubit registers. Otherwise, only pad
     // the contiguous range of registers that it covers.
-    const minRegIdx: number = isClassicallyControlled
-      ? 0
-      : Math.min(...qRegIdxList);
-    const maxRegIdx: number = isClassicallyControlled
-      ? numRegs - 1
-      : Math.max(...qRegIdxList);
+    const minRegIdx: number = padAll ? 0 : Math.min(...qRegIdxList);
+    const maxRegIdx: number = padAll ? numRegs - 1 : Math.max(...qRegIdxList);
     // Add operation also to registers that are in-between target registers
     // so that other gates won't render in the middle.
     for (let i = minRegIdx; i <= maxRegIdx; i++) {
@@ -333,6 +338,14 @@ const _opToMetadata = (
   } else if (gate === "X") {
     metadata.type = GateType.X;
     metadata.label = gate;
+  } else if (gate === "annotation") {
+    metadata.type = GateType.Annotation;
+    metadata.label = displayArgs!;
+
+    // Set targets to first and last quantum registers so we can render the dashed
+    // line across all registers
+    // const qubitsY: number[] = Object.values(registers).map(({ y }) => y);
+    // if (qubitsY.length > 0) metadata.targetsY = [Math.min(...qubitsY), Math.max(...qubitsY)];
   } else {
     // Any other gate treated as a simple unitary gate
     metadata.type = GateType.Unitary;
@@ -343,7 +356,8 @@ const _opToMetadata = (
   if (isAdjoint && metadata.label.length > 0) metadata.label += "'";
 
   // If gate has extra arguments, display them
-  if (displayArgs != null) metadata.displayArgs = displayArgs;
+  if (displayArgs != null && metadata.type !== GateType.Annotation)
+    metadata.displayArgs = displayArgs;
 
   // Set gate width
   metadata.width = getGateWidth(metadata);
@@ -404,6 +418,7 @@ const _splitTargetsY = (
   targets: Register[],
   classicalRegY: number[],
   registers: RegisterMap,
+  clobberClassical = false,
 ): number[][] => {
   if (targets.length === 0) return [];
 
@@ -433,11 +448,11 @@ const _splitTargetsY = (
     // Split into new group if one of the following holds:
     //      1. First target register
     //      2. Non-adjacent qubit registers
-    //      3. There is a classical register between current and previous register
+    //      3. There is a classical register between current and previous register & we're not clobbering classical wires
     if (
       groups.length === 0 ||
       pos > prevPos + 1 ||
-      (classicalRegY[0] > prevY && classicalRegY[0] < y)
+      (classicalRegY[0] > prevY && classicalRegY[0] < y && !clobberClassical)
     )
       groups.push([y]);
     else groups[groups.length - 1].push(y);

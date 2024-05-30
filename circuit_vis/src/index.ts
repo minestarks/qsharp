@@ -23,6 +23,15 @@ export const draw = (
   sqore.draw(container, renderDepth);
 };
 
+export const drawWithMd = (
+  circuit: Circuit,
+  container: HTMLElement,
+  mdRender: (input: string) => string,
+): void => {
+  const sqore = new Sqore(circuit, {}, mdRender);
+  sqore.draw(container, 0);
+};
+
 export { STYLES } from "./styles";
 
 // Export types

@@ -38,6 +38,7 @@ export class Sqore {
   circuit: Circuit;
   style: StyleConfig = {};
   gateRegistry: GateRegistry = {};
+  mdRender?: (input: string) => string;
 
   /**
    * Initializes Sqore object with custom styles.
@@ -45,9 +46,14 @@ export class Sqore {
    * @param circuit Circuit to be visualized.
    * @param style Custom visualization style.
    */
-  constructor(circuit: Circuit, style: StyleConfig | string = {}) {
+  constructor(
+    circuit: Circuit,
+    style: StyleConfig | string = {},
+    mdRender?: (input: string) => string,
+  ) {
     this.circuit = circuit;
     this.style = this.getStyle(style);
+    this.mdRender = mdRender;
   }
 
   /**
@@ -144,9 +150,22 @@ export class Sqore {
     };
 
     const { qubits, operations } = circuit;
-    const { qubitWires, registers, svgHeight } = formatInputs(qubits);
+    // const annotations = operations.filter((o) => o.gate === "annotation");
+    // if (annotations.length > 0) {
+    //   // phantom qubit for the annotation
+    //   qubits.push({ id: qubits.length });
+    // }
+    const { qubitWires, registers, svgHeight, annotationY } = formatInputs(
+      qubits,
+      operations.filter((o) => o.gate === "annotation").length > 0,
+    );
+
     const { metadataList, svgWidth } = processOperations(operations, registers);
-    const formattedGates: SVGElement = formatGates(metadataList);
+    const formattedGates: SVGElement = formatGates(
+      metadataList,
+      0,
+      annotationY,
+    );
     const measureGates: Metadata[] = flatten(metadataList).filter(
       ({ type }) => type === GateType.Measure,
     );
