@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use crate::compile::{self, compile, core, new_std_core};
+use crate::compile::{self, compile, core, std};
 use miette::Diagnostic;
 
 use qsc_ast::ast;
@@ -43,15 +43,14 @@ impl Compiler {
         capabilities: TargetCapabilityFlags,
         language_features: LanguageFeatures,
     ) -> Result<Self, Errors> {
+        let core = core();
+        let mut store = PackageStore::new(core);
         let mut dependencies = Vec::new();
-        let mut store = if include_std {
-            let (package_store, std_package_id) = new_std_core(capabilities);
-            dependencies.push(std_package_id);
-            package_store
-        } else {
-            let core = core();
-            PackageStore::new(core)
-        };
+        if include_std {
+            let std = std(&store, capabilities);
+            let id = store.insert(std);
+            dependencies.push(id);
+        }
 
         let (unit, errors) = compile(
             &store,

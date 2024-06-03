@@ -35,7 +35,7 @@ use qsc_hir::{
     validate::Validator as HirValidator,
     visit::Visitor as _,
 };
-use std::{fmt::Debug, rc::Rc, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 use thiserror::Error;
 
 #[derive(Debug, Default)]
@@ -194,44 +194,26 @@ pub(super) enum ErrorKind {
 }
 
 pub struct PackageStore {
-    core: Rc<global::Table>,
-    cached_units: IndexMap<PackageId, Rc<CompileUnit>>,
+    core: global::Table,
     units: IndexMap<PackageId, CompileUnit>,
     next_id: PackageId,
 }
 
 impl Debug for PackageStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "package store with {} units",
-            self.cached_units.iter().count() + self.units.iter().count()
-        )
+        write!(f, "package store with {} units", self.units.iter().count())
     }
 }
 
 impl PackageStore {
     #[must_use]
     pub fn new(core: CompileUnit) -> Self {
-        let table = Rc::new(global::iter_package(Some(PackageId::CORE), &core.package).collect());
+        let table = global::iter_package(Some(PackageId::CORE), &core.package).collect();
         let mut units = IndexMap::new();
         units.insert(PackageId::CORE, core);
         Self {
             core: table,
-            cached_units: IndexMap::new(),
             units,
-            next_id: PackageId::CORE.successor(),
-        }
-    }
-
-    #[must_use]
-    pub fn with_cached_core(core: Rc<CompileUnit>, table: Rc<global::Table>) -> Self {
-        let mut cached_units = IndexMap::new();
-        cached_units.insert(PackageId::CORE, core);
-        Self {
-            core: table,
-            cached_units,
-            units: IndexMap::new(),
             next_id: PackageId::CORE.successor(),
         }
     }
@@ -239,13 +221,6 @@ impl PackageStore {
     #[must_use]
     pub fn core(&self) -> &global::Table {
         &self.core
-    }
-
-    pub fn cached_insert(&mut self, unit: Rc<CompileUnit>) -> PackageId {
-        let id = self.next_id;
-        self.next_id = id.successor();
-        self.cached_units.insert(id, unit);
-        id
     }
 
     pub fn insert(&mut self, unit: CompileUnit) -> PackageId {
@@ -257,15 +232,12 @@ impl PackageStore {
 
     #[must_use]
     pub fn get(&self, id: PackageId) -> Option<&CompileUnit> {
-        self.cached_units
-            .get(id)
-            .map(AsRef::as_ref)
-            .or_else(|| self.units.get(id))
+        self.units.get(id)
     }
 
     #[must_use]
     pub fn iter(&self) -> Iter {
-        Iter(self.cached_units.iter(), self.units.iter())
+        Iter(self.units.iter())
     }
 
     /// "Opens" the package store. This inserts an empty
@@ -335,19 +307,13 @@ impl OpenPackageStore {
     }
 }
 
-pub struct Iter<'a>(
-    index_map::Iter<'a, PackageId, Rc<CompileUnit>>,
-    index_map::Iter<'a, PackageId, CompileUnit>,
-);
+pub struct Iter<'a>(index_map::Iter<'a, PackageId, CompileUnit>);
 
 impl<'a> Iterator for Iter<'a> {
     type Item = (PackageId, &'a CompileUnit);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0
-            .next()
-            .map(|(id, unit)| (id, unit.as_ref()))
-            .or_else(|| self.1.next())
+        self.0.next()
     }
 }
 
@@ -444,8 +410,7 @@ pub fn compile_ast(
 #[must_use]
 pub fn core() -> CompileUnit {
     let store = PackageStore {
-        core: Rc::new(global::Table::default()),
-        cached_units: IndexMap::new(),
+        core: global::Table::default(),
         units: IndexMap::new(),
         next_id: PackageId::CORE,
     };
