@@ -185,7 +185,6 @@ impl<'a> CompilationStateUpdater<'a> {
             }
         });
 
-        trace!("update_document");
         let prev_compilation_uri = self.with_state_mut(|state| {
             state
                 .open_documents
@@ -260,7 +259,6 @@ impl<'a> CompilationStateUpdater<'a> {
         language_features: Option<LanguageFeatures>,
         lints_config: &[LintConfig],
     ) {
-        trace!("insert_buffer_aware_compilation");
         self.with_state_mut(|state| {
             // replace source with one from memory if it exists
             // this is what prioritizes open buffers over what exists on the fs for a
@@ -286,13 +284,10 @@ impl<'a> CompilationStateUpdater<'a> {
             );
             compilation.run_expensive_analysis(self.configuration.target_profile, lints_config);
 
-            trace!("finished compiling");
-
             state.compilations.insert(
                 compilation_uri.clone(),
                 (compilation, compilation_overrides),
             );
-            trace!("inserted compilation");
         });
     }
 
@@ -328,7 +323,6 @@ impl<'a> CompilationStateUpdater<'a> {
     /// document was the last open document in a compilation,
     /// the compilation is also removed.
     fn remove_open_document(&mut self, uri: &str) -> bool {
-        trace!("remove_open_document");
         let existing_compilation_uri = self.with_state_mut(|state| {
             state.compilations.remove(uri);
 
@@ -342,7 +336,6 @@ impl<'a> CompilationStateUpdater<'a> {
     }
 
     fn maybe_close_project(&mut self, compilation_uri: &Arc<str>) -> bool {
-        trace!("maybe_close_project");
         self.with_state_mut(|state| {
             // if there are no remaining open documents with the project's compilation URI
             if state
@@ -368,7 +361,6 @@ impl<'a> CompilationStateUpdater<'a> {
     {
         let notebook_metadata = notebook_metadata.clone();
         let configuration = self.configuration.clone();
-        trace!("update_notebook_document");
         self.with_state_mut(|state| {
             let compilation_uri: Arc<str> = notebook_uri.into();
             // First remove all previously known cells for this notebook
@@ -418,7 +410,6 @@ impl<'a> CompilationStateUpdater<'a> {
     }
 
     pub(super) fn close_notebook_document(&mut self, notebook_uri: &str) {
-        trace!("close_notebook_document");
         self.with_state_mut(|state| {
             trace!("close_notebook_document: {notebook_uri}");
 
@@ -511,7 +502,6 @@ impl<'a> CompilationStateUpdater<'a> {
     /// the current configuration. Publishes updated
     /// diagnostics for all documents.
     fn recompile_all(&mut self) {
-        trace!("recompile_all");
         self.with_state_mut(|state| {
             for (compilation, package_specific_configuration) in state.compilations.values_mut() {
                 let configuration =
@@ -543,11 +533,8 @@ impl<'a> CompilationStateUpdater<'a> {
     where
         F: FnOnce(&CompilationState) -> T,
     {
-        trace!("entering with_state");
         let state = self.state.borrow();
-        let r = f(&state);
-        trace!("exiting with_state");
-        r
+        f(&state)
     }
 
     /// Borrows the compilation state immutably and invokes `f`.
@@ -560,11 +547,8 @@ impl<'a> CompilationStateUpdater<'a> {
     where
         F: FnOnce(&mut CompilationState) -> T,
     {
-        trace!("entering with_state_mut");
         let mut state = self.state.borrow_mut();
-        let r = f(&mut state);
-        trace!("exiting with_state_mut");
-        r
+        f(&mut state)
     }
 }
 
