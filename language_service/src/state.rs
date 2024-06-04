@@ -246,13 +246,18 @@ impl<'a> CompilationStateUpdater<'a> {
 
             let configuration = merge_configurations(&compilation_overrides, &self.configuration);
 
-            let compilation = Compilation::new(
+            let mut compilation = Compilation::new(
                 configuration.package_type,
                 configuration.target_profile,
                 configuration.language_features,
                 &configuration.lints_config,
                 loaded_project.package_graph_sources,
                 loaded_project.errors,
+            );
+
+            compilation.run_expensive_analysis(
+                self.configuration.target_profile,
+                &configuration.lints_config,
             );
 
             state
@@ -348,7 +353,7 @@ impl<'a> CompilationStateUpdater<'a> {
             let configuration = merge_configurations(&notebook_configuration, &configuration);
 
             // Compile the notebook and add each cell into the document map
-            let compilation = Compilation::new_notebook(
+            let mut compilation = Compilation::new_notebook(
                 cells.map(|(cell_uri, version, cell_contents)| {
                     trace!("update_notebook_document: cell: {cell_uri} {version}");
                     state.open_documents.insert(
@@ -366,6 +371,9 @@ impl<'a> CompilationStateUpdater<'a> {
                 &configuration.lints_config,
                 project,
             );
+
+            compilation
+                .run_expensive_analysis(configuration.target_profile, &configuration.lints_config);
 
             state.compilations.insert(
                 compilation_uri.clone(),
@@ -500,6 +508,7 @@ impl<'a> CompilationStateUpdater<'a> {
                     configuration.language_features,
                     &lints_config,
                 );
+                compilation.run_expensive_analysis(configuration.target_profile, &lints_config);
             }
         });
 
