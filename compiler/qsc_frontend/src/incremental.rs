@@ -54,7 +54,7 @@ impl Compiler {
     /// Creates a new compiler.
     pub fn new(
         store: &PackageStore,
-        dependencies: impl IntoIterator<Item = PackageId>,
+        dependencies: &[PackageId],
         capabilities: TargetCapabilityFlags,
         language_features: LanguageFeatures,
     ) -> Self {
@@ -69,10 +69,10 @@ impl Compiler {
 
         for id in dependencies {
             let unit = store
-                .get(id)
+                .get(*id)
                 .expect("dependency should be added to package store before compilation");
-            resolve_globals.add_external_package(id, &unit.package);
-            typeck_globals.add_external_package(id, &unit.package);
+            resolve_globals.add_external_package(*id, &unit.package);
+            typeck_globals.add_external_package(*id, &unit.package);
             dropped_names.extend(unit.dropped_names.iter().cloned());
         }
 

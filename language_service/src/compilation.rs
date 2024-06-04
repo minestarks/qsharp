@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use crate::state::Configuration;
 use log::trace;
 use qsc::{
     ast,
@@ -12,7 +13,7 @@ use qsc::{
     line_column::{Encoding, Position, Range},
     resolve,
     target::Profile,
-    CompileUnit, LanguageFeatures, PackageStore, PackageType, PassContext, SourceMap, Span,
+    CompileUnit, PackageStore, PackageType, PassContext, SourceMap, Span,
 };
 use qsc_linter::LintConfig;
 use std::sync::Arc;
@@ -21,6 +22,8 @@ use std::sync::Arc;
 /// to implement language service features.
 #[derive(Debug)]
 pub(crate) struct Compilation {
+    /// The configuration that was used to compile the package.
+    pub configuration: Configuration,
     /// Package store, containing the current package and all its dependencies.
     pub package_store: PackageStore,
     /// The `PackageId` of the user package. User code
@@ -35,22 +38,16 @@ pub(crate) enum CompilationKind {
     /// An open Q# project.
     /// In an `OpenProject` compilation, the user package contains
     /// one or more sources, and a target profile.
-    OpenProject,
+    OpenProject { dependencies: Vec<PackageId> },
     /// A Q# notebook. In a notebook compilation, the user package
     /// contains multiple `Source`s, with each source corresponding
     /// to a cell.
-    Notebook,
+    Notebook { source_package_id: PackageId },
 }
 
 impl Compilation {
     /// Creates a new `Compilation` by compiling sources.
-    pub(crate) fn new(
-        sources: &[(Arc<str>, Arc<str>)],
-        package_type: PackageType,
-        target_profile: Profile,
-        language_features: LanguageFeatures,
-        lints_config: &[LintConfig],
-    ) -> Self {
+    pub(crate) fn new(sources: &[(Arc<str>, Arc<str>)], configuration: Configuration) -> Self {
         if sources.len() == 1 {
             trace!("compiling single-file document {}", sources[0].0);
         } else {
@@ -60,43 +57,43 @@ impl Compilation {
         let source_map = SourceMap::new(sources.iter().map(|(x, y)| (x.clone(), y.clone())), None);
 
         let mut package_store = PackageStore::new(compile::core());
-        let std_package_id =
-            package_store.insert(compile::std(&package_store, target_profile.into()));
+        let std_package_id = package_store.insert(compile::std(
+            &package_store,
+            configuration.target_profile.into(),
+        ));
+
+        let dependencies = vec![std_package_id];
 
         let (unit, mut errors) = compile::compile(
             &package_store,
-            &[std_package_id],
+            &dependencies,
             source_map,
-            package_type,
-            target_profile.into(),
-            language_features,
+            configuration.package_type,
+            configuration.target_profile.into(),
+            configuration.language_features,
         );
 
         let user_package_id = package_store.insert(unit);
 
         run_expensive_analysis(
             &mut errors,
-            target_profile,
+            configuration.target_profile,
             &package_store,
             user_package_id,
-            lints_config,
+            &configuration.lints_config,
         );
 
         Self {
             package_store,
             user_package_id,
             errors,
-            kind: CompilationKind::OpenProject,
+            configuration,
+            kind: CompilationKind::OpenProject { dependencies },
         }
     }
 
     /// Creates a new `Compilation` by compiling sources from notebook cells.
-    pub(crate) fn new_notebook<I>(
-        cells: I,
-        target_profile: Profile,
-        language_features: LanguageFeatures,
-        lints_config: &[LintConfig],
-    ) -> Self
+    pub(crate) fn new_notebook<I>(cells: I, configuration: Configuration) -> Self
     where
         I: Iterator<Item = (Arc<str>, Arc<str>)>,
     {
@@ -105,8 +102,8 @@ impl Compilation {
             true,
             SourceMap::default(),
             PackageType::Lib,
-            target_profile.into(),
-            language_features,
+            configuration.target_profile.into(),
+            configuration.language_features,
         )
         .expect("expected incremental compiler creation to succeed");
 
@@ -123,21 +120,116 @@ impl Compilation {
             compiler.update(increment);
         }
 
-        let (package_store, user_package_id) = compiler.into_package_store();
+        let (package_store, source_package_id, user_package_id) = compiler.into_package_store();
 
         run_expensive_analysis(
             &mut errors,
-            target_profile,
+            configuration.target_profile,
             &package_store,
             user_package_id,
-            lints_config,
+            &configuration.lints_config,
         );
 
         Self {
             package_store,
             user_package_id,
             errors,
-            kind: CompilationKind::Notebook,
+            configuration,
+            kind: CompilationKind::Notebook { source_package_id },
+        }
+    }
+
+    pub(crate) fn update(
+        mut self,
+        sources: &[(Arc<str>, Arc<str>)],
+        configuration: Configuration,
+    ) -> Self {
+        if configuration != self.configuration {
+            return Compilation::new(sources, configuration);
+        }
+
+        let source_map = SourceMap::new(sources.iter().map(|(x, y)| (x.clone(), y.clone())), None);
+
+        self.package_store.remove(self.user_package_id);
+
+        if let CompilationKind::OpenProject { dependencies } = &self.kind {
+            let (unit, mut errors) = compile::compile(
+                &self.package_store,
+                dependencies,
+                source_map,
+                configuration.package_type,
+                configuration.target_profile.into(),
+                configuration.language_features,
+            );
+
+            self.user_package_id = self.package_store.insert(unit);
+
+            run_expensive_analysis(
+                &mut errors,
+                configuration.target_profile,
+                &self.package_store,
+                self.user_package_id,
+                &configuration.lints_config,
+            );
+
+            self.errors = errors;
+
+            self
+        } else {
+            panic!("expected to find open project");
+        }
+    }
+
+    pub(crate) fn update_notebook<I>(mut self, cells: I, configuration: Configuration) -> Self
+    where
+        I: Iterator<Item = (Arc<str>, Arc<str>)>,
+    {
+        if configuration != self.configuration {
+            return Compilation::new_notebook(cells, configuration);
+        }
+
+        self.package_store.remove(self.user_package_id);
+
+        if let CompilationKind::Notebook { source_package_id } = &self.kind {
+            let mut compiler = Compiler::from(
+                self.package_store,
+                *source_package_id,
+                configuration.target_profile.into(),
+                configuration.language_features,
+            );
+
+            let mut errors = Vec::new();
+            for (name, contents) in cells {
+                trace!("compiling cell {name}");
+                let increment = compiler
+                    .compile_fragments(&name, &contents, |cell_errors| {
+                        errors.extend(cell_errors);
+                        Ok(()) // accumulate errors without failing
+                    })
+                    .expect("compile_fragments_acc_errors should not fail");
+
+                compiler.update(increment);
+            }
+
+            let (package_store, source_package_id, user_package_id) = compiler.into_package_store();
+
+            run_expensive_analysis(
+                &mut errors,
+                configuration.target_profile,
+                &package_store,
+                user_package_id,
+                &configuration.lints_config,
+            );
+
+            Self {
+                package_store,
+                user_package_id,
+                errors,
+                configuration,
+                kind: CompilationKind::Notebook { source_package_id },
+            }
+        } else {
+            panic!("expected to find notebook");
         }
     }
 
@@ -237,13 +329,7 @@ impl Compilation {
     }
 
     /// Regenerates the compilation with the same sources but the passed in workspace configuration options.
-    pub fn recompile(
-        &mut self,
-        package_type: PackageType,
-        target_profile: Profile,
-        language_features: LanguageFeatures,
-        lints_config: &[LintConfig],
-    ) {
+    pub fn recompile(&mut self, configuration: Configuration) {
         let sources = self
             .user_unit()
             .sources
@@ -251,20 +337,15 @@ impl Compilation {
             .map(|source| (source.name.clone(), source.contents.clone()));
 
         let new = match self.kind {
-            CompilationKind::OpenProject => Self::new(
-                &sources.collect::<Vec<_>>(),
-                package_type,
-                target_profile,
-                language_features,
-                lints_config,
-            ),
-            CompilationKind::Notebook => {
-                Self::new_notebook(sources, target_profile, language_features, lints_config)
+            CompilationKind::OpenProject { .. } => {
+                Self::new(&sources.collect::<Vec<_>>(), configuration)
             }
+            CompilationKind::Notebook { .. } => Self::new_notebook(sources, configuration),
         };
         self.package_store = new.package_store;
         self.user_package_id = new.user_package_id;
         self.errors = new.errors;
+        self.configuration = new.configuration;
     }
 }
 

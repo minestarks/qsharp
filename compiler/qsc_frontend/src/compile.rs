@@ -254,6 +254,14 @@ impl PackageStore {
             open: id,
         }
     }
+
+    pub fn remove(&mut self, id: PackageId) {
+        self.units.remove(id);
+        // If removing the last package, reuse id
+        if self.next_id == id.successor() {
+            self.next_id = id;
+        }
+    }
 }
 impl<'a> IntoIterator for &'a PackageStore {
     type IntoIter = Iter<'a>;
@@ -304,6 +312,10 @@ impl OpenPackageStore {
     #[must_use]
     pub fn into_package_store(self) -> (PackageStore, PackageId) {
         (self.store, self.open)
+    }
+
+    pub fn reset(&mut self) {
+        self.store.remove(self.open);
     }
 }
 

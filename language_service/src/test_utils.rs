@@ -3,7 +3,10 @@
 
 use std::sync::Arc;
 
-use crate::compilation::{Compilation, CompilationKind};
+use crate::{
+    compilation::{Compilation, CompilationKind},
+    state::Configuration,
+};
 use qsc::{
     compile,
     hir::PackageId,
@@ -69,13 +72,15 @@ fn compile_project_with_fake_stdlib_and_markers_cursor_optional(
 
     let source_map = SourceMap::new(sources, None);
     let (mut package_store, std_package_id) = compile_fake_stdlib();
+    let dependencies = vec![std_package_id];
+    let configuration = Configuration::default();
     let (unit, errors) = compile::compile(
         &package_store,
-        &[std_package_id],
+        &dependencies,
         source_map,
-        PackageType::Exe,
-        Profile::Unrestricted.into(),
-        LanguageFeatures::default(),
+        configuration.package_type,
+        configuration.target_profile.into(),
+        configuration.language_features,
     );
 
     let package_id = package_store.insert(unit);
@@ -84,8 +89,9 @@ fn compile_project_with_fake_stdlib_and_markers_cursor_optional(
         Compilation {
             package_store,
             user_package_id: package_id,
-            kind: CompilationKind::OpenProject,
+            kind: CompilationKind::OpenProject { dependencies },
             errors,
+            configuration,
         },
         cursor_location,
         target_spans,
@@ -122,12 +128,16 @@ where
         None,
     );
 
+    let configuration = Configuration {
+        package_type: PackageType::Lib,
+        ..Default::default()
+    };
     let mut compiler = Compiler::new(
         false,
         std_source_map,
-        PackageType::Lib,
-        Profile::Unrestricted.into(),
-        LanguageFeatures::default(),
+        configuration.package_type,
+        configuration.target_profile.into(),
+        configuration.language_features,
     )
     .expect("expected incremental compiler creation to succeed");
 
@@ -143,13 +153,14 @@ where
         compiler.update(increment);
     }
 
-    let (package_store, package_id) = compiler.into_package_store();
+    let (package_store, source_package_id, user_package_id) = compiler.into_package_store();
 
     Compilation {
+        configuration,
         package_store,
-        user_package_id: package_id,
+        user_package_id,
         errors,
-        kind: CompilationKind::Notebook,
+        kind: CompilationKind::Notebook { source_package_id },
     }
 }
 

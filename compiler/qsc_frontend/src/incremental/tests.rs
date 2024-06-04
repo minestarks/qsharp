@@ -18,7 +18,7 @@ fn one_callable() {
     let store = PackageStore::new(compile::core());
     let mut compiler = Compiler::new(
         &store,
-        vec![],
+        &[],
         TargetCapabilityFlags::all(),
         LanguageFeatures::default(),
     );
@@ -142,7 +142,7 @@ fn one_statement() {
     let store = PackageStore::new(compile::core());
     let mut compiler = Compiler::new(
         &store,
-        vec![],
+        &[],
         TargetCapabilityFlags::all(),
         LanguageFeatures::default(),
     );
@@ -205,7 +205,7 @@ fn parse_error() {
     let store = PackageStore::new(compile::core());
     let mut compiler = Compiler::new(
         &store,
-        vec![],
+        &[],
         TargetCapabilityFlags::all(),
         LanguageFeatures::default(),
     );
@@ -250,7 +250,7 @@ fn conditional_compilation_not_available() {
     let store = PackageStore::new(compile::core());
     let mut compiler = Compiler::new(
         &store,
-        vec![],
+        &[],
         TargetCapabilityFlags::all(),
         LanguageFeatures::default(),
     );
@@ -280,7 +280,7 @@ fn errors_across_multiple_lines() {
     let std_id = store.insert(std);
     let mut compiler = Compiler::new(
         &store,
-        [std_id],
+        &[std_id],
         TargetCapabilityFlags::all(),
         LanguageFeatures::default(),
     );
@@ -349,7 +349,7 @@ fn continue_after_parse_error() {
     let store = PackageStore::new(compile::core());
     let mut compiler = Compiler::new(
         &store,
-        vec![],
+        &[],
         TargetCapabilityFlags::all(),
         LanguageFeatures::default(),
     );
@@ -425,7 +425,7 @@ fn continue_after_lower_error() {
     let store = PackageStore::new(compile::core());
     let mut compiler = Compiler::new(
         &store,
-        vec![],
+        &[],
         TargetCapabilityFlags::all(),
         LanguageFeatures::default(),
     );

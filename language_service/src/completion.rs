@@ -50,11 +50,13 @@ pub(crate) fn get_completions(
     context_finder.visit_package(user_ast_package);
 
     let insert_open_at = match compilation.kind {
-        CompilationKind::OpenProject => context_finder.start_of_namespace,
+        CompilationKind::OpenProject { .. } => context_finder.start_of_namespace,
         // Since notebooks don't typically contain namespace declarations,
         // open statements should just get before the first non-whitespace
         // character (i.e. at the top of the cell)
-        CompilationKind::Notebook => Some(get_first_non_whitespace_in_source(compilation, offset)),
+        CompilationKind::Notebook { .. } => {
+            Some(get_first_non_whitespace_in_source(compilation, offset))
+        }
     };
 
     let insert_open_range = insert_open_at.map(|o| {
@@ -123,8 +125,8 @@ pub(crate) fn get_completions(
             builder.push_item_decl_keywords();
         }
         Context::NoCompilation | Context::TopLevel => match compilation.kind {
-            CompilationKind::OpenProject => builder.push_namespace_keyword(),
-            CompilationKind::Notebook => {
+            CompilationKind::OpenProject { .. } => builder.push_namespace_keyword(),
+            CompilationKind::Notebook { .. } => {
                 // For notebooks, the top-level allows for
                 // more syntax.
 
