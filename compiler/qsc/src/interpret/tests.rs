@@ -1772,25 +1772,8 @@ mod given_interpreter {
                 LanguageFeatures::default(),
             );
 
-            let mut store = crate::PackageStore::new(crate::compile::core());
-            let dependencies = vec![store.insert(crate::compile::std(&store, capabilities))];
-
-            let (unit, errors) = crate::compile::compile(
-                &store,
-                &dependencies,
-                sources,
-                package_type,
-                capabilities,
-                language_features,
-            );
-            for e in &errors {
-                eprintln!("{e:?}");
-            }
-            assert!(errors.is_empty(), "compilation failed: {}", errors[0]);
-            let package_id = store.insert(unit);
-
             let mut interpreter =
-                Interpreter::from(store, package_id, capabilities, language_features)
+                Interpreter::new(true, sources, package_type, capabilities, language_features)
                     .expect("interpreter should be created");
             let (result, output) = entry(&mut interpreter);
             is_only_value(

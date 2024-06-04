@@ -124,11 +124,11 @@ pub struct Interpreter {
     lowerer: qsc_lowerer::Lowerer,
     /// The ID of the current package.
     /// This ID is valid both for the FIR store and the `PackageStore`.
-    package: PackageId,
+    open_package: PackageId,
     /// The ID of the source package. The source package
     /// is made up of the initial sources passed in when creating the interpreter.
     /// This ID is valid both for the FIR store and the `PackageStore`.
-    source_package: PackageId,
+    root_package: PackageId,
     /// The default simulator backend.
     sim: BackendChain<SparseSim, CircuitBuilder>,
     /// The quantum seed, if any. This is cached here so that it can be used in calls to
@@ -238,44 +238,8 @@ impl Interpreter {
             sim: sim_circuit_backend(),
             quantum_seed: None,
             classical_seed: None,
-            package,
-            source_package: map_hir_package_to_fir(source_package_id),
-        })
-    }
-
-    pub fn from(
-        store: PackageStore,
-        source_package_id: qsc_hir::hir::PackageId,
-        capabilities: TargetCapabilityFlags,
-        language_features: LanguageFeatures,
-    ) -> std::result::Result<Self, Vec<Error>> {
-        let compiler = Compiler::from(store, source_package_id, capabilities, language_features)
-            .map_err(into_errors)?;
-
-        let mut fir_store = fir::PackageStore::new();
-        for (id, unit) in compiler.package_store() {
-            let mut lowerer = qsc_lowerer::Lowerer::new();
-            fir_store.insert(
-                map_hir_package_to_fir(id),
-                lowerer.lower_package(&unit.package),
-            );
-        }
-
-        let source_package_id = compiler.source_package_id();
-        let package_id = compiler.package_id();
-
-        Ok(Self {
-            compiler,
-            lines: 0,
-            capabilities,
-            fir_store,
-            lowerer: qsc_lowerer::Lowerer::new(),
-            env: Env::default(),
-            sim: sim_circuit_backend(),
-            quantum_seed: None,
-            classical_seed: None,
-            package: map_hir_package_to_fir(package_id),
-            source_package: map_hir_package_to_fir(source_package_id),
+            open_package: package,
+            root_package: map_hir_package_to_fir(source_package_id),
         })
     }
 
@@ -296,7 +260,7 @@ impl Interpreter {
     ) -> std::result::Result<Value, Vec<Error>> {
         let graph = self.get_entry_exec_graph()?;
         eval(
-            self.source_package,
+            self.root_package,
             self.classical_seed,
             graph,
             self.compiler.package_store(),
@@ -319,7 +283,7 @@ impl Interpreter {
             sim.set_seed(self.quantum_seed);
         }
         eval(
-            self.source_package,
+            self.root_package,
             self.classical_seed,
             graph,
             self.compiler.package_store(),
@@ -331,7 +295,7 @@ impl Interpreter {
     }
 
     fn get_entry_exec_graph(&self) -> std::result::Result<Rc<[ExecGraphNode]>, Vec<Error>> {
-        let unit = self.fir_store.get(self.source_package);
+        let unit = self.fir_store.get(self.root_package);
         if unit.entry.is_some() {
             return Ok(unit.entry_exec_graph.clone());
         };
@@ -395,7 +359,7 @@ impl Interpreter {
         self.compiler.update(increment);
 
         eval(
-            self.package,
+            self.open_package,
             self.classical_seed,
             graph.into(),
             self.compiler.package_store(),
@@ -442,11 +406,11 @@ impl Interpreter {
             // and we are in a bad state and can't proceed.
             panic!("internal error: compute properties not set after lowering entry expression");
         };
-        let package = self.fir_store.get(self.package);
+        let package = self.fir_store.get(self.open_package);
         let entry = ProgramEntry {
             exec_graph: graph.into(),
             expr: (
-                self.package,
+                self.open_package,
                 package
                     .entry
                     .expect("package must have an entry expression"),
@@ -463,7 +427,7 @@ impl Interpreter {
         .map_err(|e| {
             let hir_package_id = match e.span() {
                 Some(span) => span.package,
-                None => map_fir_package_to_hir(self.package),
+                None => map_fir_package_to_hir(self.open_package),
             };
             let source_package = self
                 .compiler
@@ -542,7 +506,7 @@ impl Interpreter {
         }
 
         Ok(eval(
-            self.package,
+            self.open_package,
             self.classical_seed,
             graph.into(),
             self.compiler.package_store(),
@@ -563,10 +527,13 @@ impl Interpreter {
 
         let (package_id, graph) = if let Some(entry_expr) = entry_expr {
             // entry expression is provided
-            (self.package, self.compile_entry_expr(&entry_expr)?.0.into())
+            (
+                self.open_package,
+                self.compile_entry_expr(&entry_expr)?.0.into(),
+            )
         } else {
             // no entry expression, use the entrypoint in the package
-            (self.source_package, self.get_entry_exec_graph()?)
+            (self.root_package, self.get_entry_exec_graph()?)
         };
 
         if self.quantum_seed.is_some() {
@@ -688,7 +655,7 @@ impl Interpreter {
         if self.capabilities != TargetCapabilityFlags::all() {
             return self.run_fir_passes(unit_addition);
         }
-        let fir_package = self.fir_store.get_mut(self.package);
+        let fir_package = self.fir_store.get_mut(self.open_package);
         self.lowerer
             .lower_and_update_package(fir_package, &unit_addition.hir);
         Ok((self.lowerer.take_exec_graph(), None))
@@ -699,23 +666,26 @@ impl Interpreter {
         unit: &qsc_frontend::incremental::Increment,
     ) -> std::result::Result<(Vec<ExecGraphNode>, Option<PackageStoreComputeProperties>), Vec<Error>>
     {
-        let fir_package = self.fir_store.get_mut(self.package);
+        let fir_package = self.fir_store.get_mut(self.open_package);
         self.lowerer
             .lower_and_update_package(fir_package, &unit.hir);
 
-        let cap_results =
-            PassContext::run_fir_passes_on_fir(&self.fir_store, self.package, self.capabilities);
+        let cap_results = PassContext::run_fir_passes_on_fir(
+            &self.fir_store,
+            self.open_package,
+            self.capabilities,
+        );
 
         let compute_properties = cap_results.map_err(|caps_errors| {
             // if there are errors, convert them to interpreter errors
             // and revert the update to the lowerer/FIR store.
-            let fir_package = self.fir_store.get_mut(self.package);
+            let fir_package = self.fir_store.get_mut(self.open_package);
             self.lowerer.revert_last_increment(fir_package);
 
             let source_package = self
                 .compiler
                 .package_store()
-                .get(map_fir_package_to_hir(self.package))
+                .get(map_fir_package_to_hir(self.open_package))
                 .expect("package should exist in the package store");
 
             caps_errors
@@ -818,7 +788,7 @@ impl Debugger {
             capabilities,
             language_features,
         )?;
-        let source_package_id = interpreter.source_package;
+        let source_package_id = interpreter.root_package;
         let unit = interpreter.fir_store.get(source_package_id);
         let entry_exec_graph = unit.entry_exec_graph.clone();
         Ok(Self {
@@ -904,7 +874,7 @@ impl Debugger {
             let package = self
                 .interpreter
                 .fir_store
-                .get(self.interpreter.source_package);
+                .get(self.interpreter.root_package);
             let mut collector = BreakpointCollector::new(
                 &unit.sources,
                 source.offset,
@@ -936,7 +906,7 @@ impl Debugger {
         self.interpreter
             .compiler
             .package_store()
-            .get(map_fir_package_to_hir(self.interpreter.source_package))
+            .get(map_fir_package_to_hir(self.interpreter.root_package))
             .expect("Could not load package")
     }
 }

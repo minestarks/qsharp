@@ -58,7 +58,7 @@ struct OpenDocument {
 }
 
 #[derive(Debug, Clone)]
-struct Configuration {
+pub(crate) struct Configuration {
     pub target_profile: Profile,
     pub package_type: PackageType,
     pub language_features: LanguageFeatures,
@@ -73,6 +73,25 @@ impl Default for Configuration {
             language_features: LanguageFeatures::default(),
             lints_config: Vec::default(),
         }
+    }
+}
+
+impl PartialEq for Configuration {
+    fn eq(&self, other: &Self) -> bool {
+        if self.target_profile != other.target_profile
+            || self.package_type != other.package_type
+            || self.language_features != other.language_features
+        {
+            return false;
+        }
+
+        for lint in &self.lints_config {
+            if !other.lints_config.contains(lint) {
+                return false;
+            }
+        }
+
+        true
     }
 }
 
@@ -237,16 +256,15 @@ impl<'a> CompilationStateUpdater<'a> {
 
             let configuration = merge_configurations(&compilation_overrides, &self.configuration);
 
-            let mut compilation = Compilation::new(
-                &sources,
-                configuration.package_type,
-                configuration.target_profile,
-                configuration.language_features,
-                &configuration.lints_config,
-                loaded_project.errors,
-            );
-            compilation.run_expensive_analysis(self.configuration.target_profile, &lints_config);
+            let mut compilation = if let Some((existing_compilation, _)) =
+                state.compilations.remove(&compilation_uri)
+            {
+                existing_compilation.update(&sources, configuration)
+            } else {
+                Compilation::new(&sources, configuration, loaded_project.errors)
+            };
 
+            compilation.run_expensive_analysis(self.configuration.target_profile, &lints_config);
             state.compilations.insert(
                 compilation_uri.clone(),
                 (compilation, compilation_overrides),
@@ -332,26 +350,31 @@ impl<'a> CompilationStateUpdater<'a> {
             let configuration = merge_configurations(&notebook_configuration, &configuration);
 
             // Compile the notebook and add each cell into the document map
-            let mut compilation = Compilation::new_notebook(
-                cells.map(|(cell_uri, version, cell_contents)| {
-                    trace!("update_notebook_document: cell: {cell_uri} {version}");
-                    state.open_documents.insert(
-                        (*cell_uri).into(),
-                        OpenDocument {
-                            version,
-                            compilation: compilation_uri.clone(),
-                            latest_str_content: Arc::from(cell_contents),
-                        },
-                    );
-                    (Arc::from(cell_uri), Arc::from(cell_contents))
-                }),
-                configuration.target_profile,
-                configuration.language_features,
-                &configuration.lints_config,
-            );
+            let lints_config = configuration.lints_config.clone();
+            let target_profile = configuration.target_profile;
 
-            compilation
-                .run_expensive_analysis(configuration.target_profile, &configuration.lints_config);
+            let cells = cells.map(|(cell_uri, version, cell_contents)| {
+                trace!("update_notebook_document: cell: {cell_uri} {version}");
+                state.open_documents.insert(
+                    (*cell_uri).into(),
+                    OpenDocument {
+                        version,
+                        compilation: compilation_uri.clone(),
+                        latest_str_content: Arc::from(cell_contents),
+                    },
+                );
+                (Arc::from(cell_uri), Arc::from(cell_contents))
+            });
+
+            let mut compilation = if let Some((existing_compilation, _)) =
+                state.compilations.remove(&compilation_uri)
+            {
+                existing_compilation.update_notebook(cells, configuration)
+            } else {
+                Compilation::new_notebook(cells, configuration)
+            };
+
+            compilation.run_expensive_analysis(target_profile, &lints_config);
 
             state.compilations.insert(
                 compilation_uri.clone(),
@@ -473,14 +496,12 @@ impl<'a> CompilationStateUpdater<'a> {
             for (compilation, package_specific_configuration) in state.compilations.values_mut() {
                 let configuration =
                     merge_configurations(package_specific_configuration, &self.configuration);
-                let lints_config = package_specific_configuration.lints_config.clone();
-                compilation.recompile(
-                    configuration.package_type,
-                    configuration.target_profile,
-                    configuration.language_features,
-                    &lints_config,
-                );
-                compilation.run_expensive_analysis(configuration.target_profile, &lints_config);
+
+                let lints_config = configuration.lints_config.clone();
+                let target_profile = configuration.target_profile;
+
+                compilation.recompile(configuration);
+                compilation.run_expensive_analysis(target_profile, &lints_config);
             }
         });
 

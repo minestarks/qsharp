@@ -20,9 +20,8 @@ pub struct Compiler {
     /// A package store that contains the current, mutable, `CompileUnit`
     /// as well as all its immutable dependencies.
     store: OpenPackageStore,
-    /// The ID of the source package. The source package
-    /// is made up of the initial sources passed in when creating the compiler.
     source_package_id: PackageId,
+    dependencies: Vec<PackageId>,
     /// Context for passes that is reused across incremental compilations.
     passes: PassContext,
     /// The frontend incremental compiler.
@@ -69,7 +68,7 @@ impl Compiler {
 
         let frontend = qsc_frontend::incremental::Compiler::new(
             &store,
-            dependencies,
+            &dependencies,
             capabilities,
             language_features,
         );
@@ -78,6 +77,7 @@ impl Compiler {
         Ok(Self {
             store,
             source_package_id,
+            dependencies,
             frontend,
             passes: PassContext::default(),
         })
@@ -88,18 +88,64 @@ impl Compiler {
         source_package_id: PackageId,
         capabilities: TargetCapabilityFlags,
         language_features: LanguageFeatures,
-    ) -> Result<Self, Errors> {
+    ) -> Self {
         let frontend =
-            qsc_frontend::incremental::Compiler::new(&store, [], capabilities, language_features);
+            qsc_frontend::incremental::Compiler::new(&store, &[], capabilities, language_features);
         let store = store.open();
 
-        Ok(Self {
+        Self {
             store,
             source_package_id,
+            dependencies: Vec::new(),
             frontend,
             passes: PassContext::default(),
-        })
+        }
     }
+
+    // pub fn reinit(
+    //     self,
+    //     sources: SourceMap,
+    //     package_type: PackageType,
+    //     capabilities: TargetCapabilityFlags,
+    //     language_features: LanguageFeatures,
+    // ) -> Result<Self, Errors> {
+    //     let mut dependencies = self.dependencies.clone();
+    //     let source_package_id = self.source_package_id;
+    //     let (mut store, open_package_id) = self.into_package_store();
+    //     store.remove(open_package_id);
+    //     store.remove(source_package_id);
+
+    //     let (unit, errors) = compile(
+    //         &store,
+    //         &dependencies,
+    //         sources,
+    //         package_type,
+    //         capabilities,
+    //         language_features,
+    //     );
+    //     if !errors.is_empty() {
+    //         return Err(errors);
+    //     }
+
+    //     let source_package_id = store.insert(unit);
+    //     dependencies.push(source_package_id);
+
+    //     let frontend = qsc_frontend::incremental::Compiler::new(
+    //         &store,
+    //         &dependencies,
+    //         capabilities,
+    //         language_features,
+    //     );
+    //     let store = store.open();
+
+    //     Ok(Self {
+    //         store,
+    //         source_package_id,
+    //         dependencies,
+    //         frontend,
+    //         passes: PassContext::default(),
+    //     })
+    // }
 
     /// Compiles Q# fragments. Fragments are Q# code that can contain
     /// top-level statements as well as namespaces. A notebook cell
@@ -273,6 +319,10 @@ impl Compiler {
         self.store.package_store()
     }
 
+    pub fn dependencies(&self) -> impl Iterator<Item = PackageId> + '_ {
+        self.dependencies.iter().copied()
+    }
+
     /// Returns ID of the current `CompileUnit`.
     #[must_use]
     pub fn package_id(&self) -> PackageId {
@@ -289,8 +339,9 @@ impl Compiler {
     /// Consumes the incremental compiler and returns an immutable package store.
     /// This method can be used to finalize the compilation.
     #[must_use]
-    pub fn into_package_store(self) -> (PackageStore, PackageId) {
-        self.store.into_package_store()
+    pub fn into_package_store(self) -> (PackageStore, PackageId, PackageId) {
+        let (package_store, open_package_id) = self.store.into_package_store();
+        (package_store, self.source_package_id, open_package_id)
     }
 }
 
