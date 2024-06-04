@@ -72,24 +72,19 @@ impl Compilation {
             language_features,
         );
 
-        let package_id = package_store.insert(unit);
-        let unit = package_store
-            .get(package_id)
-            .expect("expected to find user package");
+        let user_package_id = package_store.insert(unit);
 
-        run_fir_passes(
+        run_expensive_analysis(
             &mut errors,
             target_profile,
             &package_store,
-            package_id,
-            unit,
+            user_package_id,
+            lints_config,
         );
-
-        run_linter_passes(lints_config, &mut errors, unit);
 
         Self {
             package_store,
-            user_package_id: package_id,
+            user_package_id,
             errors,
             kind: CompilationKind::OpenProject,
         }
@@ -128,27 +123,41 @@ impl Compilation {
             compiler.update(increment);
         }
 
-        let (package_store, package_id) = compiler.into_package_store();
-        let unit = package_store
-            .get(package_id)
-            .expect("expected to find user package");
+        let (package_store, user_package_id) = compiler.into_package_store();
 
-        run_fir_passes(
+        run_expensive_analysis(
             &mut errors,
             target_profile,
             &package_store,
-            package_id,
-            unit,
+            user_package_id,
+            lints_config,
         );
-
-        run_linter_passes(lints_config, &mut errors, unit);
 
         Self {
             package_store,
-            user_package_id: package_id,
+            user_package_id,
             errors,
             kind: CompilationKind::Notebook,
         }
+    }
+
+    /// Analyzes the package and pushes errors.
+    /// Performs RCA nd lint passes.
+    pub fn run_expensive_analysis(&mut self, target_profile: Profile, lints_config: &[LintConfig]) {
+        let unit = self
+            .package_store
+            .get(self.user_package_id)
+            .expect("expected to find user package");
+
+        run_fir_passes(
+            &mut self.errors,
+            target_profile,
+            &self.package_store,
+            self.user_package_id,
+            unit,
+        );
+
+        run_linter_passes(lints_config, &mut self.errors, unit);
     }
 
     /// Gets the `CompileUnit` associated with user (non-library) code.
@@ -257,6 +266,25 @@ impl Compilation {
         self.user_package_id = new.user_package_id;
         self.errors = new.errors;
     }
+}
+
+/// Analyzes the package and pushes errors.
+/// Performs RCA nd lint passes.
+/// These should only be performed if there are no errors in the compilation.
+fn run_expensive_analysis(
+    errors: &mut Vec<WithSource<compile::ErrorKind>>,
+    target_profile: Profile,
+    package_store: &PackageStore,
+    user_package_id: PackageId,
+    lints_config: &[LintConfig],
+) {
+    let unit = package_store
+        .get(user_package_id)
+        .expect("expected to find user package");
+
+    run_fir_passes(errors, target_profile, package_store, user_package_id, unit);
+
+    run_linter_passes(lints_config, errors, unit);
 }
 
 /// Runs the passes required for code generation
