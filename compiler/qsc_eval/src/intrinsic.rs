@@ -11,7 +11,7 @@ use crate::{
     error::PackageSpan,
     output::Receiver,
     val::{self, Qubit, Value},
-    Error,
+    Error, QubitSpans,
 };
 use num_bigint::BigInt;
 use rand::{rngs::StdRng, Rng};
@@ -19,14 +19,17 @@ use rustc_hash::FxHashSet;
 use std::array;
 
 #[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn call(
     name: &str,
     name_span: PackageSpan,
     arg: Value,
+    caller_span: Option<PackageSpan>,
     arg_span: PackageSpan,
     sim: &mut dyn Backend<ResultType = impl Into<val::Result>>,
     rng: &mut StdRng,
     out: &mut dyn Receiver,
+    qubit_spans: &mut QubitSpans,
 ) -> Result<Value, Error> {
     match name {
         "Length" => match arg.unwrap_array().len().try_into() {
@@ -109,7 +112,12 @@ pub(crate) fn call(
         }
         #[allow(clippy::cast_possible_truncation)]
         "Truncate" => Ok(Value::Int(arg.unwrap_double() as i64)),
-        "__quantum__rt__qubit_allocate" => Ok(Value::Qubit(Qubit(sim.qubit_allocate()))),
+        "__quantum__rt__qubit_allocate" => {
+            let id = sim.qubit_allocate();
+            // obviously this is wrong
+            qubit_spans.insert(id, (caller_span, arg_span));
+            Ok(Value::Qubit(Qubit(id)))
+        }
         "__quantum__rt__qubit_release" => {
             let qubit = arg.unwrap_qubit().0;
             if sim.qubit_is_zero(qubit) {

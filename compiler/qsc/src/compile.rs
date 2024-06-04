@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use log::warn;
 use miette::{Diagnostic, Report};
 use qsc_data_structures::{language_features::LanguageFeatures, target::TargetCapabilityFlags};
 use qsc_frontend::{
@@ -91,6 +92,10 @@ fn process_compile_unit(
         for error in run_default_passes(store.core(), &mut unit, package_type) {
             errors.push(WithSource::from_map(&unit.sources, error.into()));
         }
+    }
+
+    if !errors.is_empty() {
+        warn!("errors in compilation: {errors:?}");
     }
 
     (unit, errors)

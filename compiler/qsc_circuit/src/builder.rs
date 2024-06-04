@@ -23,6 +23,8 @@ pub struct Builder {
     remapper: Remapper,
 }
 
+pub type QubitNames = IndexMap<usize, Vec<String>>;
+
 impl Backend for Builder {
     type ResultType = usize;
 
@@ -240,13 +242,13 @@ impl Builder {
     #[must_use]
     pub fn snapshot(&self) -> Circuit {
         let circuit = self.circuit.clone();
-        self.finish_circuit(circuit)
+        self.finish_circuit(circuit, IndexMap::default())
     }
 
     #[must_use]
-    pub fn finish(mut self) -> Circuit {
+    pub fn finish(mut self, qubit_names: QubitNames) -> Circuit {
         let circuit = take(&mut self.circuit);
-        self.finish_circuit(circuit)
+        self.finish_circuit(circuit, qubit_names)
     }
 
     fn map(&mut self, qubit: usize) -> HardwareId {
@@ -279,7 +281,7 @@ impl Builder {
             .count()
     }
 
-    fn finish_circuit(&self, mut circuit: Circuit) -> Circuit {
+    fn finish_circuit(&self, mut circuit: Circuit, names: QubitNames) -> Circuit {
         let by_qubit = self.num_measurements_by_qubit();
 
         // add deferred measurements
@@ -291,22 +293,21 @@ impl Builder {
         }
 
         let num_qubits = self.remapper.num_hardware_qubits();
-        // if self.has_annotation {
-        //     num_qubits += 1;
-        // }
-
-        // for o in &mut circuit.operations {
-        //     if o.gate == "annotation" {
-        //         o.targets = vec![Register::quantum(num_qubits - 1)]
-        //     }
-        // }
 
         // add qubit declarations
         for i in 0..num_qubits {
+            let all_qubits_for_this_hardware_id = self.remapper.get_ever_mapped(HardwareId(i));
+            let mut all_names_for_this_qubit = all_qubits_for_this_hardware_id
+                .into_iter()
+                .flat_map(|q| names.get(q).into_iter().flatten().cloned())
+                .collect::<Vec<_>>();
+            all_names_for_this_qubit.dedup(); // don't know why we get dupes here but whatever
+
             let num_measurements = by_qubit.get(i).map_or(0, |c| *c);
             circuit.qubits.push(crate::circuit::Qubit {
                 id: i,
                 num_children: num_measurements,
+                name: Some(all_names_for_this_qubit.join(", ")),
             });
         }
 
