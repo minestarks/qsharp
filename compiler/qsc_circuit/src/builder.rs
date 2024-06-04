@@ -22,6 +22,8 @@ pub struct Builder {
     remapper: Remapper,
 }
 
+pub type QubitNames = IndexMap<usize, Vec<String>>;
+
 impl Backend for Builder {
     type ResultType = usize;
 
@@ -241,13 +243,13 @@ impl Builder {
     #[must_use]
     pub fn snapshot(&self) -> Circuit {
         let circuit = self.circuit.clone();
-        self.finish_circuit(circuit)
+        self.finish_circuit(circuit, IndexMap::default())
     }
 
     #[must_use]
-    pub fn finish(mut self) -> Circuit {
+    pub fn finish(mut self, qubit_names: QubitNames) -> Circuit {
         let circuit = take(&mut self.circuit);
-        self.finish_circuit(circuit)
+        self.finish_circuit(circuit, qubit_names)
     }
 
     fn map(&mut self, qubit: usize) -> WireId {
@@ -266,7 +268,7 @@ impl Builder {
             .unwrap_or_default()
     }
 
-    fn finish_circuit(&self, mut circuit: Circuit) -> Circuit {
+    fn finish_circuit(&self, mut circuit: Circuit, names: QubitNames) -> Circuit {
         // add deferred measurements
         if self.config.base_profile {
             for (qubit, _) in &self.remapper.qubit_measurement_counts {
@@ -276,22 +278,21 @@ impl Builder {
         }
 
         let num_qubits = self.remapper.num_hardware_qubits();
-        // if self.has_annotation {
-        //     num_qubits += 1;
-        // }
-
-        // for o in &mut circuit.operations {
-        //     if o.gate == "annotation" {
-        //         o.targets = vec![Register::quantum(num_qubits - 1)]
-        //     }
-        // }
 
         // add qubit declarations
         for i in 0..num_qubits {
+            let all_qubits_for_this_hardware_id = self.remapper.get_ever_mapped(WireId(i));
+            let mut all_names_for_this_qubit = all_qubits_for_this_hardware_id
+                .into_iter()
+                .flat_map(|q| names.get(q).into_iter().flatten().cloned())
+                .collect::<Vec<_>>();
+            all_names_for_this_qubit.dedup(); // don't know why we get dupes here but whatever
+
             let num_measurements = self.num_measurements_for_qubit(WireId(i));
             circuit.qubits.push(crate::circuit::Qubit {
                 id: i,
                 num_children: num_measurements,
+                name: Some(all_names_for_this_qubit.join(", ")),
             });
         }
 
@@ -389,18 +390,36 @@ struct Remapper {
     next_qubit_wire_id: WireId,
     qubit_map: IndexMap<usize, WireId>,
     qubit_measurement_counts: IndexMap<WireId, usize>,
+    // All the qubits that have ever been mapped to this hardware qubit
+    // Key is HardwareId!
+    // I don't actually think the same hardware qubit can be mapped to more than one qubit
+    // in this layer . The opposite may be true though.
+    ever_mapped: IndexMap<WireId, Vec<usize>>,
 }
 
 impl Remapper {
     fn map(&mut self, qubit: usize) -> WireId {
-        if let Some(mapped) = self.qubit_map.get(qubit) {
+        let m = if let Some(mapped) = self.qubit_map.get(qubit) {
             *mapped
         } else {
             let mapped = self.next_qubit_wire_id;
             self.next_qubit_wire_id.0 += 1;
             self.qubit_map.insert(qubit, mapped);
             mapped
-        }
+        };
+        let ever = if let Some(ever) = self.ever_mapped.get_mut(m) {
+            ever
+        } else {
+            self.ever_mapped.insert(m, Vec::new());
+            self.ever_mapped.get_mut(m).expect("yada yada")
+        };
+        ever.push(qubit);
+        m
+    }
+
+    #[must_use]
+    pub fn get_ever_mapped(&self, id: WireId) -> Vec<usize> {
+        self.ever_mapped.get(id).expect("yada yada").clone()
     }
 
     fn m(&mut self, q: usize) -> usize {

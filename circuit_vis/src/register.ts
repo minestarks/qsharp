@@ -31,6 +31,7 @@ export interface RegisterMetadata {
   y: number;
   /** Nested classical registers attached to quantum register. */
   children?: RegisterMetadata[];
+  name?: string;
 }
 
 /**

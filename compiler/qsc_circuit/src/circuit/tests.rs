@@ -22,10 +22,12 @@ fn no_gates() {
             Qubit {
                 id: 0,
                 num_children: 0,
+                name: None,
             },
             Qubit {
                 id: 1,
                 num_children: 0,
+                name: None,
             },
         ],
     };
@@ -86,10 +88,12 @@ fn bell() {
             Qubit {
                 id: 0,
                 num_children: 1,
+                name: None,
             },
             Qubit {
                 id: 1,
                 num_children: 1,
+                name: None,
             },
         ],
     };
@@ -142,14 +146,17 @@ fn control_classical() {
             Qubit {
                 id: 0,
                 num_children: 1,
+                name: None,
             },
             Qubit {
                 id: 1,
                 num_children: 0,
+                name: None,
             },
             Qubit {
                 id: 2,
                 num_children: 0,
+                name: None,
             },
         ],
     };
@@ -191,6 +198,7 @@ fn two_measurements() {
         qubits: vec![Qubit {
             id: 0,
             num_children: 2,
+            name: None,
         }],
     };
 
@@ -218,6 +226,7 @@ fn with_args() {
         qubits: vec![Qubit {
             id: 0,
             num_children: 0,
+            name: None,
         }],
     };
 
@@ -246,14 +255,17 @@ fn two_targets() {
             Qubit {
                 id: 0,
                 num_children: 0,
+                name: None,
             },
             Qubit {
                 id: 1,
                 num_children: 0,
+                name: None,
             },
             Qubit {
                 id: 2,
                 num_children: 0,
+                name: None,
             },
         ],
     };

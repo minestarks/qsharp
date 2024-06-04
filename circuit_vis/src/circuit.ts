@@ -20,6 +20,8 @@ export interface Qubit {
   id: number;
   /** Number of classical registers attached to quantum register. */
   numChildren?: number;
+  /** optional name for the qubit */
+  name?: string;
 }
 
 /**

@@ -8,6 +8,7 @@ pub mod incremental;
 pub mod interpret;
 pub mod location;
 pub mod packages;
+mod qubit_namer;
 pub mod target;
 
 pub use qsc_formatter::formatter;
