@@ -1,6 +1,8 @@
-- [ ] Update sample notebooks with newer features (connection string, widgets, etc)
-- [ ] Make the jupyterlab extension more discoverable somehow
-- [ ] Language service should be aware of project in `qsharp.init(project_root=foo)`
-- [ ] Allow circuit for parameterless operation
-- [ ] Circuits for adj and ctl specializations of an operation
-- [ ] fix ascii for gates that span multiple rows (e.g. rzz)
+- [ ] Notebooks: Update sample notebooks with newer features (connection string, widgets, etc)
+- [ ] Notebooks: Make the jupyterlab extension more discoverable somehow
+- [ ] Notebooks: Language service should be aware of project in `qsharp.init(project_root=foo)`
+- [ ] Circuits: Allow circuit for parameterless operation
+- [ ] Circuits: Generate or adj and ctl specializations of an operation
+- [ ] Circuits: Fix ASCII art for gates that span multiple rows (e.g. rzz)
+- [ ] Circuits: Integration tests
+- [ ] Circuits: Use RCA / partial eval instead of of evaluator
