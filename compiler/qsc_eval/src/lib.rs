@@ -233,6 +233,30 @@ pub fn eval(
     receiver: &mut impl Receiver,
 ) -> Result<Value, (Error, Vec<Frame>)> {
     let mut state = State::new(package, exec_graph, seed);
+    eval_with(&mut state, globals, env, sim, receiver)
+}
+
+pub fn eval_and_get_qubit_table(
+    package: PackageId,
+    seed: Option<u64>,
+    exec_graph: Rc<[ExecGraphNode]>,
+    globals: &impl PackageStoreLookup,
+    env: &mut Env,
+    sim: &mut impl Backend<ResultType = impl Into<val::Result>>,
+    receiver: &mut impl Receiver,
+) -> Result<(Value, QubitSpans), (Error, Vec<Frame>)> {
+    let mut state = State::new(package, exec_graph, seed);
+    let res = eval_with(&mut state, globals, env, sim, receiver)?;
+    Ok((res, state.qubit_alloc_source_table))
+}
+
+fn eval_with(
+    state: &mut State,
+    globals: &impl PackageStoreLookup,
+    env: &mut Env,
+    sim: &mut impl Backend<ResultType = impl Into<val::Result>>,
+    receiver: &mut impl Receiver,
+) -> Result<Value, (Error, Vec<Frame>)> {
     let res = state.eval(globals, env, sim, receiver, &[], StepAction::Continue)?;
     let StepResult::Return(value) = res else {
         panic!("eval should always return a value");
@@ -437,6 +461,8 @@ struct Scope {
     frame_id: usize,
 }
 
+pub type QubitSpans = IndexMap<usize, (Option<PackageSpan>, PackageSpan)>;
+
 pub struct State {
     exec_graph_stack: Vec<Rc<[ExecGraphNode]>>,
     idx: u32,
@@ -448,6 +474,7 @@ pub struct State {
     call_stack: CallStack,
     current_span: Span,
     rng: RefCell<StdRng>,
+    qubit_alloc_source_table: QubitSpans,
 }
 
 impl State {
@@ -472,6 +499,7 @@ impl State {
             call_stack: CallStack::default(),
             current_span: Span::default(),
             rng,
+            qubit_alloc_source_table: QubitSpans::default(),
         }
     }
 
@@ -973,6 +1001,10 @@ impl State {
         let spec = spec_from_functor_app(functor);
         match &callee.implementation {
             CallableImpl::Intrinsic => {
+                let callerr_span = self.call_stack.frames.last().map(|f| PackageSpan {
+                    package: map_fir_package_to_hir(f.caller),
+                    span: f.span,
+                });
                 self.push_frame(Vec::new().into(), callee_id, functor);
 
                 let name = &callee.name.name;
@@ -980,10 +1012,12 @@ impl State {
                     name,
                     callee_span,
                     arg,
+                    callerr_span,
                     arg_span,
                     sim,
                     &mut self.rng.borrow_mut(),
                     out,
+                    &mut self.qubit_alloc_source_table,
                 )?;
                 if val == Value::unit() && callee.output != Ty::UNIT {
                     return Err(Error::UnsupportedIntrinsicType(

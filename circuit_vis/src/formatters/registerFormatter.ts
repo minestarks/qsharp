@@ -24,7 +24,9 @@ const formatRegisters = (
   const formattedRegs: SVGElement[] = [];
   // Render qubit wires
   for (const qId in registers) {
-    formattedRegs.push(_qubitRegister(Number(qId), endX, registers[qId].y));
+    formattedRegs.push(
+      _qubitRegister(Number(qId), registers[qId].name, endX, registers[qId].y),
+    );
   }
   // Render classical wires
   measureGates.forEach(({ type, x, targetsY, controlsY }) => {
@@ -101,13 +103,15 @@ const _classicalRegister = (
  */
 const _qubitRegister = (
   qId: number,
+  name: string | undefined,
   endX: number,
   y: number,
   labelOffset = 16,
 ): SVGElement => {
   const wire: SVGElement = line(regLineStart, y, endX, y);
+  const nameOrId = name ?? `q${qId}`;
 
-  const label: SVGElement = text(`q${qId}`, regLineStart, y - labelOffset);
+  const label: SVGElement = text(nameOrId, regLineStart, y - labelOffset);
   label.setAttribute("dominant-baseline", "hanging");
   label.setAttribute("text-anchor", "start");
   label.setAttribute("font-size", "75%");

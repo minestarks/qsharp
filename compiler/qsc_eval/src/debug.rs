@@ -16,7 +16,7 @@ pub struct Frame {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct CallStack {
-    frames: Vec<Frame>,
+    pub frames: Vec<Frame>,
 }
 
 impl CallStack {

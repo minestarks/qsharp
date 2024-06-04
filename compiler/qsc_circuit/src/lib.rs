@@ -5,6 +5,6 @@ mod builder;
 mod circuit;
 pub mod operations;
 
-pub use builder::Builder;
+pub use builder::{Builder, QubitNames};
 pub use circuit::{Circuit, Config, Operation};
 pub use operations::Error;
