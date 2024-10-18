@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#![allow(clippy::needless_raw_string_hashes)]
-
 pub mod test_fs;
 
 use crate::{
