@@ -1,0 +1,30 @@
+Installation(5 minutes)
+
+Instructions should be sent out in advance, but just in case, give people time.
+Install VS Code at https://code.visualstudio.com/download
+Install “Microsoft Quantum Development Kit” by Microsoft DevLabs
+Create a GitHub account at https://github.com/
+Sign in to VS Code with your GitHub account
+Open a blank folder in VS Code
+
+QDK Demo(15 minutes)
+
+Copilot generates Q# code.
+Show circuit diagrams and interactive debugging.
+Get help from Copilot.
+Talk about advanced capabilities (e.g. simulators)
+
+Quantum Katas Demo(5 minutes)
+
+“Interactive exercises right here in your editor.”
+Solve an exercise, get help from Copilot.
+
+Grand Prize Challenge!(10 minutes)
+
+Challenge 1 (small prize – water bottle)
+Solve your first Quantum Kata and show us!
+
+Challenge 2 (grand prize – laptop)
+Replicate this histogram in the QDK and show us!
+
+Time’s up when the timer goes off.
