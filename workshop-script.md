@@ -2,17 +2,19 @@
 
 ## 1. Outline
 
+**Core message:** You can start exploring quantum computing right now with AI as your guide, even before you understand everything.
+
 Introduction slide: introduce yourself, set expectations, and mention the prize challenge.
 
-Introduction: We’ll walk through the Quantum Development Kit extension in Visual Studio Code and show how to get started.
+Introduction: We'll walk through the Quantum Development Kit extension in Visual Studio Code and show how to get started.
 
 Installation: VS Code, QDK extension, GitHub account, and setup check.
 
-QDK features walkthrough: Open, run, visualize, and inspect quantum code.
+QDK features walkthrough: Circuit image to code, explain code, fix a bug, circuit diagrams, histograms, debugging.
 
 Quantum Katas walkthrough: Start the first kata and show how to continue.
 
-Challenge: Complete the first Quantum Kata, show a Bell state histogram, or make any circuit diagram for a chance to win a laptop.
+Challenge: Complete challenges to earn raffle tickets. Grand prize is a laptop, drawn using a quantum random number generator.
 
 ---
 
@@ -32,6 +34,8 @@ Before we jump in, quick show of hands: Raise your hand if you're totally new to
 
 ### Installation and setup
 
+Note: installation instructions should be sent out in advance so attendees can arrive ready. But assume some people will not have done it.
+
 Show the installation instructions slide before switching into the demo.
 
 We’ll start from the assumption that not everyone has everything installed yet. Some of you may already have Visual Studio Code, the QDK extension, and a GitHub account ready to go. If so, you can follow along, or help someone nearby.
@@ -49,19 +53,39 @@ For the live setup demo, I’ll use a clean environment so you can see the insta
 
 ### QDK features walkthrough
 
-This section needs to be fleshed out with the exact features to demo.
+The key is to keep this section demo-first. Each feature should answer: "What can I click, run, or see right now?" Ideally without summoning any mysterious terminal goblins.
 
-Possible feature walkthrough structure:
+#### Circuit Image to Code
 
-1. Show where the QDK extension appears in VS Code.
-2. Open or create a simple quantum program.
-3. Run the program locally.
-4. Show results in the development environment.
-5. Visualize output, such as a histogram.
-6. Generate or view a circuit diagram.
-7. Point out where examples, commands, documentation, or kata links live.
+Drop a screen clipping of a quantum circuit (e.g. teleportation) into Copilot chat. Ask Copilot what the circuit is and to write the Q# code to implement it.
 
-The key is to keep this section demo-first. Each feature should answer: “What can I click, run, or see right now?” Ideally without summoning any mysterious terminal goblins.
+Talking point: "Copilot recognized the algorithm from just a picture and generated working code."
+
+Run the generated code. Show the histogram output and the circuit diagram.
+
+#### Explain This Code
+
+Ask Copilot to explain how the generated code works. This is where Copilot becomes a personal tutor.
+
+Ask a follow-up like "what does the within/apply pattern do in Q#?" — show that you can use it to learn the language itself, not just the algorithms.
+
+#### Fix a Bug
+
+Manually introduce a bug (e.g. swap a gate, duplicate a line). Show it no longer works.
+
+Start a fresh Copilot session. Ask it to find and fix the bug. Don't tell it what the bug is.
+
+Talking point: "It read the code, understood the intent, identified the mistake, and fixed it."
+
+#### Circuit Diagrams and Histograms
+
+Show how to generate and view circuit diagrams for the program.
+
+Show the measurement histogram output.
+
+#### Interactive Debugging
+
+Set a breakpoint. Step through the program. Show qubit state at each step.
 
 ### Quantum Katas walkthrough
 
@@ -73,7 +97,7 @@ This section connects directly to the challenge, since one of the challenge opti
 
 ### Challenge: chance to win a laptop
 
-At the end, we’ll present three possible challenges. Completing one gives you a chance to win a laptop. For anyone on a phone or tablet, there will be a mobile-friendly option: go to our website and complete the first Quantum Kata.
+Each challenge solved earns a raffle ticket. Grand prize is a laptop. Winner drawn at the end using a quantum random number generator simulation (cute: we use the QDK itself to pick the winner).
 
 Challenge 1: Complete the first Quantum Kata.
 
@@ -83,9 +107,15 @@ Challenge 3: Make any circuit diagram.
 
 Mobile option: Go to our website and complete the first Quantum Kata.
 
-Since the whole talk is happening on one tiny screen, the challenge slide should stay very simple. Instead of one crowded slide with all three challenges fighting for space, use three rotating slides, each focused on one challenge. Each slide should show the challenge title, the success condition, and one short hint.
+#### Contest rules
 
-Possible rotating challenge slides:
+- **Time limit:** 10 minutes.
+- **Tools allowed:** Copilot, Google, friends, anything. This isn't a closed-book exam — it's a race.
+- **Earning tickets:** Walk up and show your screen for each challenge completed. One raffle ticket per challenge.
+- **Drawing:** We'll use a quantum random number generator program in the QDK to draw the winner from the ticket pool.
+- **Tip to announce:** "You can use Copilot to help you with all of these. I literally just showed you how."
+
+#### Challenge slides
 
 **Slide 1: Complete the first Quantum Kata**
 
